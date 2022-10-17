@@ -1,0 +1,8 @@
+#Ignore Everything
+
+*
+
+#Apart From Local Python Files
+
+!.gitignore
+!*.py
