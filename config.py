@@ -43,23 +43,35 @@ class StellarWind():
         self.get_u = get_u
         self.get_T = get_T
 
+    def rho(self, r):
+
+        return self.mdot / (4 * np.pi * r**2 * self.get_u(r))
+
+    def a(self, r):
+
+        return np.sqrt(2 * self.gamma * const.k_b * self.get_T(r) / const.m_proton)
+
+
+    def M(self, r):
+
+        return a(r) / self.get_u(r)
+
 
     def ram_pressure(self,r):
 
         return (self.mdot * self.get_u(r)) / (4 * np.pi * r**2)
 
+    def post_shock_rho(self, r, cos_angle):
+
+        M_n = self.M(r) * cos_angle
+
+        return ((self.gamma + 1) * M_n**2) / ((self.gamma - 1) * M_n**2 + 2)
 
     def post_shock_pressure(self, r, cos_angle):
 
-        rho = self.mdot / (4 * np.pi * r**2 * self.get_u(r))
+        M_n = np.where(self.M(r) * cos_angle < 1.1, self.M(r), 1.1) #why did i put a cutoff at 1.1
 
-        c_s = np.sqrt(2 * const.k_b * self.get_T(r) / const.m_proton) #isothermal sound speed
-
-        a = np.sqrt(2 * self.gamma * const.k_b * self.get_T(r) / const.m_proton)
-
-        M_n = np.where((self.get_u(r) / a) * cos_angle < 1.1, (self.get_u(r) / a) * cos_angle, 1.1) #angle between normal of shock and direction of sw
-
-        post_shock_P = c_s**2 * rho * (1 + (2 * self.gamma / (self.gamma + 1)) * (M_n**2 - 1))
+        post_shock_P = self.rho(r) * self.a(r)**2 * (1 + (2 * self.gamma / (self.gamma + 1)) * (M_n**2 - 1))
 
         return post_shock_P
 
@@ -105,7 +117,7 @@ def make_rho_struc(parameters):
 
     def get_beta(position, velocity):
         r = np.sqrt(np.sum(position**2, axis = 1))
-        return np.sqrt(c_s**2 * r**3 / (const.G * mass_s))
+        return np.sqrt(2 * c_s**2 * r**3 / (const.G * mass_s))
 
     def get_zeta(position, velocity):
 
@@ -120,6 +132,7 @@ def make_rho_struc(parameters):
         cos_ang = np.sqrt(np.sum(np.cross(position, velocity)**2, axis = -1)) / (r * u)
 
         return SW.post_shock_pressure(r, cos_ang)
+
 
     rho_struc = density.Gaussian2D(parameters['mdot_planet'], c_s, get_alpha, get_beta, get_zeta, get_PswD, get_D_dimensionless)
 
@@ -140,3 +153,42 @@ Sampled Parameters
 --------------------------------------------------------------------------------------------------------------------
 Priors
 """
+
+
+
+"""
+--------------------------------------------------------------------------------------------------------------------
+Energetic Neutral Atoms
+"""
+
+class ENA():
+#ENA class:
+
+
+    def __init__(self, SW, u_ENA, L_mix):
+
+        self.SW = SW
+        self.u_ENA = u_ENA
+        self.L_mix = L_mix
+
+
+    def get_rho(self, position, velocity):
+
+        r = np.sqrt(np.sum(position**2, axis = 1))
+
+        u = np.sqrt(np.sum(velocity**2, axis = 1))
+
+        cos_ang = np.sqrt(np.sum(np.cross(position, velocity)**2, axis = -1)) / (r * u)
+
+        return self.SW.post_shock_rho(r, cos_ang)
+
+
+def make_ENA(parameters):
+
+    SW = StellarWind(parameters['mdot_star'], 1, lambda r : get_u_stellar_wind(r, parameters['v_stellar_wind']), lambda r : get_T_stellar_wind(r, parameters['T_stellar_wind']))
+    u_ENA = parameters['u_ENA']
+    L_mix = parameters['L_mix']
+
+    ENA_c = ENA(SW, u_ENA, L_mix)
+
+    return ENA_c

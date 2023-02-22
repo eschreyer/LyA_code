@@ -21,11 +21,11 @@ def evaluate_log_prior(lp):
     #first check and calculate prior
 
     #uniform(and log uniform priors)
-    if 4.7 <= lp['c_s_planet'] <= 7\
-    and 8 <= lp['mdot_planet'] <= 14\
-    and 5 <= lp['v_stellar_wind'] <= 9\
-    and 9 <= lp['mdot_star'] <= 13\
-    and 25 <= lp['L_EUV'] <= 29\
+    if 5.2 <= lp['c_s_planet'] <= 6.5\
+    and 8 <= lp['mdot_planet'] <= 10.5\
+    and 6.5 <= lp['v_stellar_wind'] <= 8\
+    and 10 <= lp['mdot_star'] <= 13\
+    and 25 <= lp['L_EUV'] <= 28\
     and np.pi/2 <= lp['angle'] <= np.pi:
 
         """#gaussian priors
@@ -50,7 +50,7 @@ def convert_to_linspace(dic):
     return new_dict
 
 
-def make_log_posterior_fn(constant_parameters):
+def make_log_posterior_fn(constant_parameters, only_blue = False, weight_fluxes = False):
     """
     Parameters
     ------------------
@@ -95,8 +95,8 @@ def make_log_posterior_fn(constant_parameters):
         else:
             try:
                 tail_solution_cartesian = ttc.trajectory_solution_cartesian(star, planet, model_parameters, rho_struc)
-            except ValueError:
-                #logging.exception(f"the parameters are {str(model_parameters)}")
+            except (ValueError, RuntimeWarning):
+                logging.exception(f"the parameters are {str(model_parameters)}")
                 return -np.inf
             else:
                 if tail_solution_cartesian.success == False: #if solution no found assume parameters unreasonable
@@ -106,7 +106,7 @@ def make_log_posterior_fn(constant_parameters):
                 else:
                     tail = ttc.trajectory_solution_polar(star, planet, model_parameters, rho_struc)
                     phase, model_intensity = do_transit(tail, phasegrid, wgrid, rho_struc, parameters['inclination'])
-                    logL = compute_logL(1 - model_intensity)
+                    logL = compute_logL(1 - model_intensity, only_blue = only_blue, weight_fluxes = weight_fluxes)
                     logPosterior = logL + logP
                     return logPosterior
 

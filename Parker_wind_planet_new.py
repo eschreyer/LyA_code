@@ -65,12 +65,10 @@ def ionisation_eq(r, N, star, planet, model_parameters):
 
     u = velocity_planetary_wind(r, star, planet, model_parameters) #velocity of outflow at r
 
-    mmw = const.m_proton / (2 - N)  #mean molecular weight of partially ionized flow
-
     if u < 5e4: #gas moving below that velocity will probably be far below the tau = 1 surface, so we assume it is not ionised at all
         return 0
     else:
-        return -(N * config.photoionization_rate(planet.semimajoraxis - r, model_parameters.L_EUV)  / u) + (model_parameters.mdot_planet * (1 - N)**2 * const.recombination_rate_caseA)/(4 * np.pi * r**2 * mmw * u**2)
+        return -(N * config.photoionization_rate(planet.semimajoraxis - r, model_parameters.L_EUV)  / u) + (model_parameters.mdot_planet * (1 - N)**2 * const.recombination_rate_caseA)/(4 * np.pi * r**2 * u**2)
 
 
 
