@@ -76,6 +76,77 @@ def find_s_grid(xy_grid, z_grid, cartesian_solution):
 
 """--------------------------------------------------------------------------------------------------------------------"""
 
+@jit(nopython = True)
+def find_s_grid1(xyz_grid, cartesian_solution):
+    #xyz grid should have a shape (n, 3)
+
+    #initialise s_grid
+
+    s_grid = np.zeros(np.shape(xyz_grid)[0])
+
+
+    ##write a loop implementation because vectorization seems confusing. Also will use numba so performance difference may be minimal
+    for i_xyz, xyz in enumerate(xyz_grid):
+
+            #want to find the the s values in which the tangent of the curve and line from curve to grid point are normal
+
+            d_prod = xyz[0] * cartesian_solution.velocity_x + xyz[1] * cartesian_solution.velocity_y + xyz[2] * cartesian_solution.velocity_z - cartesian_solution.x * cartesian_solution.velocity_x - cartesian_solution.y * cartesian_solution.velocity_y - cartesian_solution.z * cartesian_solution.velocity_z
+
+            d_prod_roots = np.nonzero(np.sign(d_prod[:-1]) != np.sign(d_prod[1:]))[0] + 1
+
+            #in the case of multiple roots, choose s value that is closest to the grid point #need to check this
+
+            dist_to_grid = np.inf #initialise at infinity so first possible root takes over value
+
+            s = 0
+
+            for root in d_prod_roots:
+
+                dist = (xyz[0] - cartesian_solution.x[root])**2 + (xyz[1] - cartesian_solution.y[root])**2 + (xyz[2] - cartesian_solution.z[root])**2
+
+                #print(dist)
+
+                if dist < dist_to_grid:
+
+                    dist_to_grid = dist
+
+                    s = cartesian_solution.s[root - 1] - (d_prod[root - 1] / ((d_prod[root] - d_prod[root - 1]) / (cartesian_solution.s[root] - cartesian_solution.s[root - 1])))
+
+            s_grid[i_xyz] = s
+
+
+    flat_nz_s_grid_ix = np.flatnonzero(s_grid)
+    flat_nz_s_grid = np.zeros(len(flat_nz_s_grid_ix))
+    flat_nz_xyz_grid = np.zeros((len(flat_nz_s_grid_ix), 3))
+
+
+    for i in range(len(flat_nz_s_grid)):
+        flat_nz_s_grid[i] = s_grid[flat_nz_s_grid_ix[i]]
+        flat_nz_xyz_grid[i] = xyz_grid[flat_nz_s_grid_ix[i]]
+
+
+
+
+    #maybe figure out a way to only interpolate non masked values
+    #return x,y,z grid
+    x_grid = np.interp(flat_nz_s_grid, cartesian_solution.s, cartesian_solution.x)
+    y_grid = np.interp(flat_nz_s_grid, cartesian_solution.s, cartesian_solution.y)
+    z_grid = np.interp(flat_nz_s_grid, cartesian_solution.s, cartesian_solution.z)
+    s_position_grid = np.stack((x_grid, y_grid, z_grid), axis = -1)
+
+
+    #return u_x, u_y, u_z grid
+    u_x_grid = np.interp(flat_nz_s_grid, cartesian_solution.s, cartesian_solution.velocity_x)
+    u_y_grid = np.interp(flat_nz_s_grid, cartesian_solution.s, cartesian_solution.velocity_y)
+    u_z_grid = np.interp(flat_nz_s_grid, cartesian_solution.s, cartesian_solution.velocity_z)
+    s_velocity_grid = np.stack((u_x_grid, u_y_grid, u_z_grid), axis = -1)
+
+    return flat_nz_xyz_grid, flat_nz_s_grid, s_position_grid, s_velocity_grid, flat_nz_s_grid_ix
+
+
+"""
+--------------------------------------------------------------------------------------------------------------------------
+"""
 def change_components_from_cartesian_to_ellipse_matrix(s_velocity_grid, i):
     """
 
@@ -106,8 +177,16 @@ def is_point_in_ellipse1(position_in_ellipse_coordinates, ellipse_height, ellips
     """
     return (position_in_ellipse_coordinates[:, 1]**2)/(ellipse_depth**2) + (position_in_ellipse_coordinates[:, 2]**2)/(ellipse_height**2) < 1
 
+def find_is_point_in_ellipse_ENA(position_in_ellipse_coordinates, ellipse_height, ellipse_depth, ENA):
+    """
+
+    """
+
+    return ((position_in_ellipse_coordinates[:, 1]**2)/(ellipse_depth**2) + (position_in_ellipse_coordinates[:, 2]**2)/(ellipse_height**2) > 1) & ((position_in_ellipse_coordinates[:, 1]**2)/((ellipse_depth + ENA.L_mix * ellipse_depth)**2) + (position_in_ellipse_coordinates[:, 2]**2)/((ellipse_height + ENA.L_mix * ellipse_height)**2) < 1)
+
 """--------------------------------------------------------------------------------------------------------------------------------"""
-def get_tau_at_phase(xy_grid, z_grid, cartesian_solution, w, rho_struc, u_los = None):
+def get_tau_at_phase(xy_grid, z_grid, cartesian_solution, w, rho_struc, inclination, u_los = None):
+    #just for calculating pw part
 
     #this gets the positions on the tail (if there are two it returns the one which is the minimum distance)
     flat_nz_xyz_grid, flat_nz_s_grid, s_position_grid, s_velocity_grid, flat_nz_s_grid_ix = find_s_grid(xy_grid, z_grid, cartesian_solution) #shape (k), shape (k,3), shape (k,3)
@@ -117,7 +196,7 @@ def get_tau_at_phase(xy_grid, z_grid, cartesian_solution, w, rho_struc, u_los = 
 
 
     #change points grid into ellipse coordinates
-    point_grid_ellipse_coords = change_components_from_cartesian_to_ellipse(flat_nz_xyz_grid, s_position_grid, s_velocity_grid, np.pi/2)  #(k,3)
+    point_grid_ellipse_coords = change_components_from_cartesian_to_ellipse(flat_nz_xyz_grid, s_position_grid, s_velocity_grid, inclination)  #(k,3)
 
     #check that s coordinate is zero (or close to zero at least)
     #print(point_grid_ellipse_coords)
@@ -164,20 +243,205 @@ def get_tau_at_phase(xy_grid, z_grid, cartesian_solution, w, rho_struc, u_los = 
 
     return tau_grid
 
-"""----------------------------------------------------------------------------------------------------------------------------------------------------"""
+"""
+------------------------------------------------------------------------------------------------------------------------------------------------------
+#tau grid calculation including ENA
+"""
+def get_tau_at_phase_w_ENA(xy_grid, z_grid, cartesian_solution, w, rho_struc, inclination, ENA = None, u_los = None):
 
-def make_transit_tools(star_radius):
+    #this gets the positions on the tail (if there are two it returns the one which is the minimum distance)
+    flat_nz_xyz_grid, flat_nz_s_grid, s_position_grid, s_velocity_grid, flat_nz_s_grid_ix = find_s_grid(xy_grid, z_grid, cartesian_solution) #shape (k), shape (k,3), shape (k,3)
+
+    if flat_nz_s_grid.size == 0:
+
+        return np.zeros((len(xy_grid), len(w)))
+
+    #height and depth
+    height_grid, depth_grid = rho_struc.get_height_and_depth(s_position_grid, s_velocity_grid)
+
+
+    #change points grid into ellipse coordinates
+    point_grid_ellipse_coords = change_components_from_cartesian_to_ellipse(flat_nz_xyz_grid, s_position_grid, s_velocity_grid, inclination)  #(k,3)
+
+    #check that s coordinate is zero (or close to zero at least)
+    #print(point_grid_ellipse_coords)
+
+    #check if point is in ellipse pw, elliptical disk ENA
+    is_point_in_ellipse_pw = is_point_in_ellipse1(point_grid_ellipse_coords, height_grid, depth_grid) #might be able to reduce this to a generic coordinate change
+
+    #planetary wind part
+
+    #reduce grid, only keep the points in the ellipse
+    flat_nz_s_grid_pw = flat_nz_s_grid[is_point_in_ellipse_pw != 0] #shape (k1)
+
+    if flat_nz_s_grid_pw.size == 0:
+
+        tau_grid_pw = np.zeros((xy_grid.shape[0], w.shape[0]))
+
+        return tau_grid_pw
+
+    else:
+
+        flat_nz_s_grid_ix_pw = flat_nz_s_grid_ix[is_point_in_ellipse_pw != 0] #shape(k1)
+
+        depth_grid2 = depth_grid[is_point_in_ellipse_pw != 0]
+
+        #tau calculation
+
+        neutral_fraction_grid_pw = np.interp(flat_nz_s_grid_pw, cartesian_solution.s, cartesian_solution.neutral_fraction) #shape (k)
+
+        density_grid_pw = rho_struc.get_density(point_grid_ellipse_coords[:, 1][is_point_in_ellipse_pw != 0], point_grid_ellipse_coords[:, 2][is_point_in_ellipse_pw != 0], s_position_grid[is_point_in_ellipse_pw != 0], s_velocity_grid[is_point_in_ellipse_pw != 0], depth_grid2) #shape (k1)
+
+        if u_los == None:
+
+            z_velocity_pw = (s_velocity_grid[:,2])[is_point_in_ellipse_pw != 0]  #shape (k1)
+
+        else:
+
+            z_velocity_pw = u_los(flat_nz_s_grid_pw)
+
+        w_mesh_pw, z_velocity_mesh_pw = np.meshgrid(w, z_velocity_pw)  #write as o_grid to speed up but beware indices are swapped
+
+        x_section_grid_pw = xs.LyA_xsection(w_mesh_pw, z_velocity_mesh_pw, 10**4)  #shape (k1, l) , #where l is the number of wavelength points
+
+        dtau_grid_flat_pw = xs.d_tau(np.reshape(density_grid_pw * neutral_fraction_grid_pw, (len(density_grid_pw), 1)), x_section_grid_pw, const.m_proton, z_grid[1] - z_grid[0]) #shape (k, l)
+
+        tau_grid_pw = np.zeros((len(xy_grid), len(w)))
+
+        for index, value in zip(flat_nz_s_grid_ix_pw, dtau_grid_flat_pw):
+
+            tau_grid_pw[index // len(z_grid)] += value
+
+        if ENA == None:
+
+            return tau_grid_pw
+
+        xyz_grid_ENA, xy_ix = get_ENA_grid(flat_nz_s_grid_ix_pw, flat_nz_xyz_grid, flat_nz_s_grid_ix, 10, z_grid)
+
+        tau_grid_ENA = get_tau_at_phase_ENA(xyz_grid_ENA, xy_ix, len(xy_grid), cartesian_solution, w, rho_struc, inclination, (z_grid[1] - z_grid[0]) / 10, ENA, u_los = None)
+
+        return tau_grid_pw + tau_grid_ENA
+
+
+
+    """##ENA part
+
+    ##reduce grid, only keep points in ENA elliptical disc
+    is_point_in_ellipse_ENA = find_is_point_in_ellipse_ENA(point_grid_ellipse_coords, height_grid, depth_grid, ENA)
+
+    flat_nz_s_grid_ENA = flat_nz_s_grid[is_point_in_ellipse_ENA != 0] #shape (k1)
+
+    if flat_nz_s_grid_ENA.size == 0:
+
+        tau_grid_ENA = np.zeros((xy_grid.shape[0], w.shape[0]))
+
+    else:
+
+        flat_nz_s_grid_ix_ENA = flat_nz_s_grid_ix[is_point_in_ellipse_ENA != 0] #shape(k1)
+
+        #depth_grid2 = depth_grid[is_point_in_ellipse != 0]
+
+        #tau calculation
+
+        neutral_fraction_grid_ENA = np.interp(flat_nz_s_grid_ENA, cartesian_solution.s, cartesian_solution.neutral_fraction) #shape (k)
+
+        density_grid_ENA = ENA.get_rho(s_position_grid[is_point_in_ellipse_ENA != 0], s_velocity_grid[is_point_in_ellipse_ENA != 0]) #shape (k1)
+
+        z_velocity_ENA = (s_velocity_grid[:,2])[is_point_in_ellipse_ENA != 0] + ENA.u_ENA  #shape (k1)
+
+        w_mesh_ENA, z_velocity_mesh_ENA = np.meshgrid(w, z_velocity_ENA)  #write as o_grid to speed up but beware indices are swapped
+
+        x_section_grid_ENA = xs.LyA_xsection(w_mesh_ENA, z_velocity_mesh_ENA, 10**5)  #shape (k1, l) , #where l is the number of wavelength points
+
+        dtau_grid_flat_ENA = xs.d_tau(np.reshape(density_grid_ENA * neutral_fraction_grid_ENA, (len(density_grid_ENA), 1)), x_section_grid_ENA, const.m_proton, z_grid[1] - z_grid[0]) #shape (k, l)
+
+        tau_grid_ENA = np.zeros((len(xy_grid), len(w)))
+
+        for index, value in zip(flat_nz_s_grid_ix_ENA, dtau_grid_flat_ENA):
+
+            tau_grid_ENA[index // len(z_grid)] += value
+
+    return tau_grid_pw + tau_grid_ENA"""
+"""----------------------------------------------------------------------------------------------------------------------------------------------------
+Getting ENA grid
+"""
+
+def get_ENA_grid(flat_nz_s_grid_ix2, flat_nz_xyz_grid, flat_nz_s_grid_ix, n_split_cells, z_grid):
+
+    i = np.flatnonzero(flat_nz_s_grid_ix2[1:] - flat_nz_s_grid_ix2[:-1] - 1)
+
+    flat_nz_s_grid_ix_ENA = np.unique(np.concatenate((flat_nz_s_grid_ix2[i], flat_nz_s_grid_ix2[i] + 1, flat_nz_s_grid_ix2[i + 1], flat_nz_s_grid_ix2[i + 1] - 1)))
+
+    is_possible_ENA = np.isin(flat_nz_s_grid_ix, flat_nz_s_grid_ix_ENA)
+
+    xyz_grid = flat_nz_xyz_grid[is_possible_ENA]
+
+    flat_nz_s_grid_ix_ENA = flat_nz_s_grid_ix[is_possible_ENA]
+
+    #make grid fine
+
+    dz = z_grid[1] - z_grid[0]
+
+    z_grid_a = np.zeros((n_split_cells, 3))
+
+    z_grid_a[:, 2] = np.linspace(- dz / 2 + dz / (2 * (n_split_cells + 1)), - dz / 2 + dz * ((2 * n_split_cells + 1) / (2 * (n_split_cells + 1))), n_split_cells)
+
+    xyz_grid_ENA = np.repeat(xyz_grid, n_split_cells, axis = 0) + np.tile(z_grid_a, [np.shape(xyz_grid)[0], 1])
+
+    xy_ix = np.repeat(flat_nz_s_grid_ix_ENA // len(z_grid), n_split_cells, axis = 0)
+
+    return xyz_grid_ENA, xy_ix
+
+def get_tau_at_phase_ENA(xyz_grid, xy_ix, xy_grid_shape, cartesian_solution, w, rho_struc, inclination, dz_ENA, ENA, u_los = None):
+
+    flat_nz_xyz_grid, flat_nz_s_grid, s_position_grid, s_velocity_grid, flat_nz_s_grid_ix = find_s_grid1(xyz_grid, cartesian_solution)
+
+    nz_xy_ix = xy_ix[flat_nz_s_grid_ix]
+
+    height_grid, depth_grid = rho_struc.get_height_and_depth(s_position_grid, s_velocity_grid)
+
+    point_grid_ellipse_coords = change_components_from_cartesian_to_ellipse(flat_nz_xyz_grid, s_position_grid, s_velocity_grid, inclination)
+
+    is_point_in_ellipse_ENA = find_is_point_in_ellipse_ENA(point_grid_ellipse_coords, height_grid, depth_grid, ENA)
+
+    neutral_fraction_grid_ENA = np.interp(flat_nz_s_grid[is_point_in_ellipse_ENA != 0], cartesian_solution.s, cartesian_solution.neutral_fraction) #shape (k)
+
+    density_grid_ENA = ENA.get_rho(s_position_grid[is_point_in_ellipse_ENA != 0], s_velocity_grid[is_point_in_ellipse_ENA != 0])
+
+    z_velocity_ENA = (s_velocity_grid[:,2])[is_point_in_ellipse_ENA != 0] + ENA.u_ENA  #shape (k1)
+
+    w_mesh, z_velocity_mesh_ENA = np.meshgrid(w, z_velocity_ENA)  #write as o_grid to speed up but beware indices are swapped
+
+    x_section_grid_ENA = xs.LyA_xsection(w_mesh, z_velocity_mesh_ENA, 10**5) #shape (k1, l) , #where l is the number of wavelength points
+
+    dtau_grid_flat_ENA = xs.d_tau(np.reshape(density_grid_ENA * neutral_fraction_grid_ENA, (len(density_grid_ENA), 1)), x_section_grid_ENA, const.m_proton, dz_ENA) #shape (k, l)
+
+    tau_grid_ENA = np.zeros((xy_grid_shape, len(w)))
+
+    for index, value in zip(nz_xy_ix[is_point_in_ellipse_ENA], dtau_grid_flat_ENA):
+
+        tau_grid_ENA[index] += value
+
+    return tau_grid_ENA
+
+
+"""
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+"""
+
+def make_transit_tools(star_radius, n_star_cells, n_z_cells = None):
 
     #specify star grid in which to perform ray tracing
-    star_grid, areas_array = sg.make_grid_cartesian2(star_radius, 20)
+    star_grid, areas_array = sg.make_grid_cartesian2(star_radius, n_star_cells)
 
     #specify z_grid
-    def get_z_grid(tail_transitcoords_array, rho_struc, number_of_z_intervals):
+    def get_z_grid(tail_transitcoords_array, rho_struc, ENA = None, n_z_cells = None):
         x_masks = np.array([tail_transitcoords_array.x < 1.5 * star_radius, tail_transitcoords_array.x > - 1.5 * star_radius])
         total_x_masks = np.all(x_masks, axis = 0)
         if np.any(total_x_masks) == False:
             return np.empty(0), tail_transitcoords_array
         else:
+            min_height = np.min(rho_struc.get_height_and_depth(np.stack((tail_transitcoords_array.x[total_x_masks], tail_transitcoords_array.y[total_x_masks], tail_transitcoords_array.z[total_x_masks]), axis = 1), np.stack((tail_transitcoords_array.velocity_x[total_x_masks], tail_transitcoords_array.velocity_y[total_x_masks], tail_transitcoords_array.velocity_z[total_x_masks]), axis = 1)))
             max_height = np.max(rho_struc.get_height_and_depth(np.stack((tail_transitcoords_array.x[total_x_masks], tail_transitcoords_array.y[total_x_masks], tail_transitcoords_array.z[total_x_masks]), axis = 1), np.stack((tail_transitcoords_array.velocity_x[total_x_masks], tail_transitcoords_array.velocity_y[total_x_masks], tail_transitcoords_array.velocity_z[total_x_masks]), axis = 1)))
             yz_masks = np.array([tail_transitcoords_array.y > - star_radius - max_height, tail_transitcoords_array.y < star_radius + max_height, tail_transitcoords_array.z > 0])
             total_masks = np.all(np.concatenate((np.array([total_x_masks]), yz_masks)), axis = 0)
@@ -188,17 +452,26 @@ def make_transit_tools(star_radius):
             else:
                 max_z = np.max(masked_z)
                 min_z = np.min(masked_z)
-                return np.linspace(min_z - 2 * max_height, max_z + 2 * max_height, number_of_z_intervals), new_transitcoords_array
+                if n_z_cells:
+                    return np.linspace(min_z - max_height, max_z + max_height, n_z_cells), new_transitcoords_array
+                else:
+                    if ENA:
+                        n_z_cells = int((max_z - min_z + 2 * max_height) // (0.1 * min_height))
+                        return np.linspace(min_z - max_height, max_z + max_height, n_z_cells), new_transitcoords_array
+                    else:
+                        n_z_cells = int((max_z - min_z + 2 * max_height) // (0.1 * min_height))
+                        return np.linspace(min_z - max_height, max_z + max_height, n_z_cells), new_transitcoords_array
 
 
-    def do_transit(tail_polar, phase, w, rho_struc, inclination, u_los = None):
+
+    def do_transit(tail_polar, phase, w, rho_struc, inclination, ENA = None, u_los = None):
 
         intensity_array = np.empty((len(phase), len(w)))
 
         for index, p in enumerate(phase):
             tail_transitcoords_array = cc.change_tail_trajectory_from_orbitalplane_to_transitcoords(tail_polar, p, inclination)
-            z_grid, new_transitcoords_array = get_z_grid(tail_transitcoords_array, rho_struc, 30)
-            tau_grid = get_tau_at_phase(star_grid, z_grid, new_transitcoords_array, w, rho_struc, u_los)
+            z_grid, new_transitcoords_array = get_z_grid(tail_transitcoords_array, rho_struc, ENA, n_z_cells)
+            tau_grid = get_tau_at_phase_w_ENA(star_grid, z_grid, new_transitcoords_array, w, rho_struc, inclination, ENA, u_los)
             intensity = np.einsum('i, ij -> j', areas_array, np.exp(-tau_grid)) / (np.pi * star_radius**2)
             intensity_array[index, :] = intensity
 

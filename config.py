@@ -54,7 +54,7 @@ class StellarWind():
 
     def M(self, r):
 
-        return a(r) / self.get_u(r)
+        return self.a(r) / self.get_u(r)
 
 
     def ram_pressure(self,r):
@@ -65,7 +65,7 @@ class StellarWind():
 
         M_n = self.M(r) * cos_angle
 
-        return ((self.gamma + 1) * M_n**2) / ((self.gamma - 1) * M_n**2 + 2)
+        return self.rho(r) * (((self.gamma + 1) * M_n**2) / ((self.gamma - 1) * M_n**2 + 2))
 
     def post_shock_pressure(self, r, cos_angle):
 

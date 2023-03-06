@@ -26,7 +26,9 @@ def evaluate_log_prior(lp):
     and 6.5 <= lp['v_stellar_wind'] <= 8\
     and 10 <= lp['mdot_star'] <= 13\
     and 25 <= lp['L_EUV'] <= 28\
-    and np.pi/2 <= lp['angle'] <= np.pi:
+    and np.pi/2 <= lp['angle'] <= np.pi\
+    and 0.01 <= lp['L_mix'] <= 0.1\
+    and 6.4 <= lp['u_ENA'] <= 8:
 
         """#gaussian priors
         mu = 1.51
@@ -43,7 +45,7 @@ def evaluate_log_prior(lp):
 def convert_to_linspace(dic):
     new_dict = {}
     for key in dic:
-        if key == 'angle' or key == 'inclination':
+        if key == 'angle' or key == 'inclination' or key == 'L_mix':
             new_dict[key] = dic[key]
         else:
             new_dict[key] = 10**dic[key]
@@ -73,7 +75,8 @@ def make_log_posterior_fn(constant_parameters, only_blue = False, weight_fluxes 
     oot_profile, oot_data, transit_data, simulate_spectra, get_lightcurves, compute_chi2, compute_logL = obs.make_transit_chi2_tools(wavgrid, tgrid)
 
     #make transit fnct
-    do_transit = dt.make_transit_tools(constant_parameters['radius_s'])
+    do_transit = dt.make_transit_tools(constant_parameters['radius_s'], 20, 50)
+    #stellar r cells is 20
 
     def evaluate_posterior(mcmc_log_parameters):
 
@@ -85,6 +88,10 @@ def make_log_posterior_fn(constant_parameters, only_blue = False, weight_fluxes 
 
         #make_density_structure
         rho_struc = config.make_rho_struc(parameters)
+
+        #make_ENA_structure
+
+        ENA = config.make_ENA(parameters)
 
         #evaluate prior
         logP = evaluate_log_prior(mcmc_log_parameters)

@@ -28,7 +28,8 @@ if args.backend:
 
 """table of parameters : {'mass_s', 'radius_s' STAR PARAM
                           'mass_p', 'radius_p', 'semimajoraxis', 'inclination' PLANET PARAM
-                          'c_s_planet', 'mdot_planet' , v_stellar_wind', 'mdot_star', 'T_stellar_wind', 'L_EUV', 'angle'} MODEL PARAM"""
+                          'c_s_planet', 'mdot_planet' , v_stellar_wind', 'mdot_star', 'T_stellar_wind', 'L_EUV', 'angle' MODEL PARAM
+                          'u_ENA', 'L_mix'} ENA param """
 
 
 #constant parameters
@@ -44,12 +45,12 @@ def main(target_file, restart = False, only_blue = False, weight_fluxes = False)
     evaluate_posterior = p.make_log_posterior_fn(constant_parameters, only_blue = only_blue, weight_fluxes = weight_fluxes)
 
     #chain params
-    n_walkers = 100
-    n_iterations = 10000
+    n_walkers = 16
+    n_iterations = 20000
 
     #sampled parameters and initial values
-    n_dim = 6
-    sampled_parameters = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle']
+    n_dim = 8
+    sampled_parameters = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'u_ENA', 'L_mix']
 
     if restart == True:
     #if chain already run and we just want to restart it
@@ -63,7 +64,7 @@ def main(target_file, restart = False, only_blue = False, weight_fluxes = False)
     else:
     #new chain
 
-        sampled_parameters_guess = np.array([6, 9.7, 7.4, 12, 26.9, (3/4)*np.pi])
+        sampled_parameters_guess = np.array([6, 9.7, 7.4, 12, 26.9, (3/4)*np.pi, 7, 0.05])
 
         #set random seed so can reproduce initial values
         rng = np.random.default_rng(seed = 2)
