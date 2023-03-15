@@ -37,14 +37,19 @@ def velocity_planetary_wind(r, star, planet, model_parameters):
     ### add test to see if critical point is less than planet radius
     returns float
     """
+
     R_L = planet.semimajoraxis * (planet.mass / (3 * star.mass))**(1/3)    #roche radius
     r_a = const.G * planet.mass / (2 * model_parameters.c_s_planet**2)    #critical point if stellar gravity ignored
     r_c = cardano_formula(R_L**3/r_a, -R_L**3)                            #critical point
     D = (r/r_c)**-4 * np.exp(4 * r_a * (1 / r_c - 1 / r) + (2 * r_a / R_L**3) * (r_c**2 - r**2) - 1)
-    if r < r_c:
+
+    return np.where(r < r_c, np.sqrt(-model_parameters.c_s_planet**2 * np.real(sp_special.lambertw(-D,0))), np.sqrt(-model_parameters.c_s_planet**2 * np.real(sp_special.lambertw(-D,-1))))
+
+
+    """if r < r_c:
         return np.sqrt(-model_parameters.c_s_planet**2 * np.real(sp_special.lambertw(-D,0)))
     elif r >= r_c:
-        return np.sqrt(-model_parameters.c_s_planet**2 * np.real(sp_special.lambertw(-D,-1)))
+        return np.sqrt(-model_parameters.c_s_planet**2 * np.real(sp_special.lambertw(-D,-1)))"""
 
 
 def density_planetary_wind(r, star, planet, model_parameters):

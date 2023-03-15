@@ -6,6 +6,7 @@ import Parker_wind_planet_new as pw
 import config as config
 from functools import partial
 
+
 """
 Forces acting on the tail
 ------------------------------------------
@@ -81,10 +82,10 @@ def trajectory_equations(s, w, star, planet, model_parameters, rho_struc):
     r = np.sqrt(w[2]**2 + w[3]**2)
     phi = np.arctan2(w[3] , w[2])
     u_s = np.sqrt(w[0]**2 + w[1]**2)
-    [height1], [depth1] = rho_struc.get_height_and_depth(np.array([[w[2], w[3]]]), np.array([[w[0], w[1]]]))
+    [height1], [depth1] = rho_struc.get_height_and_depth(np.array([[w[2], w[3], 0]]), np.array([[w[0], w[1], 0]]))
     height  = min(height1, planet.semimajoraxis*(planet.mass/(3*star.mass))**(1/3) + s) #smooth height at start
     depth = min(depth1, planet.semimajoraxis*(planet.mass/(3*star.mass))**(1/3) + s) #smooth depth at start
-    
+
 
 
     u_x_eq = (1/u_s)*((Ram_Pressure_Force(w[0], w[1], w[2], w[3], star, planet, model_parameters, height) - G_Force(r, star) + Centrifugal_Force(r, star, planet))*np.cos(phi) + 2*np.sqrt(const.G*star.mass/planet.semimajoraxis**3)*w[1])

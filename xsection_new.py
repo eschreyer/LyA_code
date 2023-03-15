@@ -4,6 +4,7 @@ import scipy.special as sp_special
 
 
 def doppler_shift(w0, velocity):
+    #positive velocity mean object travelling toward observer
     return (1 + velocity / const.c)*w0
 
 

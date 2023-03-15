@@ -5,11 +5,12 @@ import numpy as np
 import constants_new as const
 import LyA_transit_datatypes_new as LyA
 import matplotlib.pyplot as plt
-import Observation_new.chi2_gj436 as obs
+import Observation_new_v2.chi2_gj436 as obs
 import xsection_new as xs
+import constants_new as const
 
 
-def evaluate_log_prior(lp):
+def evaluate_log_prior(lp, constant_parameters):
     """
     Parameters
     --------------------
@@ -18,24 +19,28 @@ def evaluate_log_prior(lp):
     Returns
     --------------------
     """
+    #calculate energy limited mass loss rate
+
+    F_XUV = 10**lp['L_EUV'] / (4 * np.pi * constant_parameters['semimajoraxis']**2)
+    energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * constant_parameters['mass_p'])
     #first check and calculate prior
 
     #uniform(and log uniform priors)
     if 5.2 <= lp['c_s_planet'] <= 6.5\
-    and 8 <= lp['mdot_planet'] <= 10.5\
+    and 8 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr)\
     and 6.5 <= lp['v_stellar_wind'] <= 8\
-    and 10 <= lp['mdot_star'] <= 13\
-    and 25 <= lp['L_EUV'] <= 28\
-    and np.pi/2 <= lp['angle'] <= np.pi\
-    and 0.01 <= lp['L_mix'] <= 0.1\
-    and 6.4 <= lp['u_ENA'] <= 8:
+    and 10.3 <= lp['mdot_star'] <= 13\
+    and 26 <= lp['L_EUV'] <= 29\
+    and np.pi/2 <= lp['angle'] <= np.pi:
+    #and 0.01 <= lp['L_mix'] <= 0.1\
+    #and 6.4 <= lp['u_ENA'] <= 8:
 
-        """#gaussian priors
+        #gaussian priors
         mu = 1.51
         sigma = 0.02
-        lp_val = - 0.5 * ((lp['inclination'] - mu)**2 / sigma **2 + np.log(2 * np.pi * sigma**2))"""
+        lp_val = - 0.5 * ((lp['inclination'] - mu)**2 / sigma **2 + np.log(2 * np.pi * sigma**2))
 
-        return 0 #lp_val
+        return lp_val
 
     else:
 
@@ -75,8 +80,9 @@ def make_log_posterior_fn(constant_parameters, only_blue = False, weight_fluxes 
     oot_profile, oot_data, transit_data, simulate_spectra, get_lightcurves, compute_chi2, compute_logL = obs.make_transit_chi2_tools(wavgrid, tgrid)
 
     #make transit fnct
-    do_transit = dt.make_transit_tools(constant_parameters['radius_s'], 20, 50)
-    #stellar r cells is 20
+    do_transit = dt.make_transit_tools(constant_parameters['radius_s'], 15)
+    #stellar r cells is 15
+    #z cells variable
 
     def evaluate_posterior(mcmc_log_parameters):
 
@@ -90,11 +96,10 @@ def make_log_posterior_fn(constant_parameters, only_blue = False, weight_fluxes 
         rho_struc = config.make_rho_struc(parameters)
 
         #make_ENA_structure
-
-        ENA = config.make_ENA(parameters)
+        #ENA = config.make_ENA(parameters)
 
         #evaluate prior
-        logP = evaluate_log_prior(mcmc_log_parameters)
+        logP = evaluate_log_prior(mcmc_log_parameters, constant_parameters)
 
         if logP == -np.inf:
             return -np.inf

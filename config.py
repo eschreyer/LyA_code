@@ -14,6 +14,8 @@ This configuration file configures
 
 - Photoionization Rate
 
+- ENA
+
 - Sampled Parameters
 
 - Priors
@@ -54,7 +56,7 @@ class StellarWind():
 
     def M(self, r):
 
-        return self.a(r) / self.get_u(r)
+        return self.get_u(r) / self.a(r)
 
 
     def ram_pressure(self,r):
@@ -63,13 +65,13 @@ class StellarWind():
 
     def post_shock_rho(self, r, cos_angle):
 
-        M_n = self.M(r) * cos_angle
+        M_n = np.where(self.M(r) * cos_angle < 1, 1, self.M(r) * cos_angle)
 
         return self.rho(r) * (((self.gamma + 1) * M_n**2) / ((self.gamma - 1) * M_n**2 + 2))
 
     def post_shock_pressure(self, r, cos_angle):
 
-        M_n = np.where(self.M(r) * cos_angle < 1.1, self.M(r), 1.1) #why did i put a cutoff at 1.1
+        M_n = np.where(self.M(r) * cos_angle < 1, 1, self.M(r) * cos_angle) #make min M_n equal 1
 
         post_shock_P = self.rho(r) * self.a(r)**2 * (1 + (2 * self.gamma / (self.gamma + 1)) * (M_n**2 - 1))
 
@@ -104,7 +106,7 @@ get_D_dimensionless = density.Gaussian2D.make_D_interpolant(is_zeta_zero = True)
 
 def make_rho_struc(parameters):
 
-    c_s = 1e6 #parameters['c_s_planet']
+    c_s = np.sqrt(2) * np.sqrt(const.k_b * 10**4 / const.m_proton)   #parameters['c_s_planet']
     mass_s = parameters['mass_s']
     a = parameters['semimajoraxis']
     SW = StellarWind(parameters['mdot_star'], 1, lambda r : get_u_stellar_wind(r, parameters['v_stellar_wind']), lambda r : get_T_stellar_wind(r, parameters['T_stellar_wind']))
@@ -113,7 +115,7 @@ def make_rho_struc(parameters):
 
         r = np.sqrt(np.sum(position**2, axis = 1))
 
-        return np.sqrt(c_s**2 * a**3 / (const.G * mass_s))
+        return np.sqrt(c_s**2 * r**3 / (const.G * mass_s))
 
     def get_beta(position, velocity):
         r = np.sqrt(np.sum(position**2, axis = 1))
@@ -131,30 +133,14 @@ def make_rho_struc(parameters):
 
         cos_ang = np.sqrt(np.sum(np.cross(position, velocity)**2, axis = -1)) / (r * u)
 
-        return SW.post_shock_pressure(r, cos_ang)
+        vary_fac = 0.3
+
+        return vary_fac * SW.post_shock_pressure(r, cos_ang)
 
 
     rho_struc = density.Gaussian2D(parameters['mdot_planet'], c_s, get_alpha, get_beta, get_zeta, get_PswD, get_D_dimensionless)
 
     return rho_struc
-
-"""
----------------------------------------------------------------------------------------------------------------------
-Sampled Parameters
-"""
-
-
-
-
-
-
-
-"""
---------------------------------------------------------------------------------------------------------------------
-Priors
-"""
-
-
 
 """
 --------------------------------------------------------------------------------------------------------------------
@@ -192,3 +178,56 @@ def make_ENA(parameters):
     ENA_c = ENA(SW, u_ENA, L_mix)
 
     return ENA_c
+
+is_ENA_on = True
+
+"""
+---------------------------------------------------------------------------------------------------------------------
+Sampled Parameters
+"""
+
+"""table of parameters : {'mass_s', 'radius_s' STAR PARAM
+                          'mass_p', 'radius_p', 'semimajoraxis', 'inclination' PLANET PARAM
+                          'c_s_planet', 'mdot_planet' , v_stellar_wind', 'mdot_star', 'T_stellar_wind', 'L_EUV', 'angle' MODEL PARAM
+                          'u_ENA', 'L_mix'} ENA param """
+"""
+constant_parameters = {'mass_s' : 0.45*const.m_sun, 'radius_s' : 0.425*const.r_sun,
+                       'mass_p' : 0.07*const.m_jupiter, 'radius_p' : 0.35 * const.r_jupiter, 'semimajoraxis' : 4.35e11,
+                       'T_stellar_wind' : 0.5e6}
+
+sampled_parameters = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'inclination']
+sampled_parameter_guess = np.array([6, 9.3, 7.4, 12, 27.2, (3/4)*np.pi, 1.51])
+
+#assert that dimensions make sense
+"""
+
+
+
+
+
+"""
+--------------------------------------------------------------------------------------------------------------------
+Priors
+"""
+
+
+
+
+"""
+-----------------------------------------------------------------------------------------------------------------------------------
+
+Here we list a number of parameters which we fix throughout the simulation. These are split into physical parameters that control the tail and simulation parameters
+that control the
+
+Tail Temp :
+
+SW Temp :
+
+Height:
+
+Star Cells : 15
+
+Z cells size : 0.1 min(height, depth)
+
+Number of ENA cells split: 2 * (max height / min height) // 0.1 + 1
+"""
