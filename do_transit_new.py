@@ -470,12 +470,12 @@ def make_transit_tools(star_radius, n_star_cells, n_z_cells = None):
 
 
 
-    def do_transit(tail_polar, phase, w, rho_struc, inclination, ENA = None, u_los = None):
+    def do_transit(tail_polar, phase, w, rho_struc, omega_p, inclination, ENA = None, u_los = None):
 
         intensity_array = np.empty((len(phase), len(w)))
 
         for index, p in enumerate(phase):
-            tail_transitcoords_array = cc.change_tail_trajectory_from_orbitalplane_to_transitcoords(tail_polar, p, inclination)
+            tail_transitcoords_array = cc.change_tail_trajectory_from_orbitalplane_to_transitcoords(tail_polar, p, omega_p, inclination)
             z_grid, new_transitcoords_array = get_z_grid(tail_transitcoords_array, rho_struc, ENA, n_z_cells)
             tau_grid = get_tau_at_phase_w_ENA(star_grid, z_grid, new_transitcoords_array, w, rho_struc, inclination, ENA, u_los)
             intensity = np.einsum('i, ij -> j', areas_array, np.exp(-tau_grid)) / (np.pi * star_radius**2)

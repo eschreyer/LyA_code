@@ -3,7 +3,7 @@ import scipy.special as sp_special
 from functools import partial
 import scipy.integrate as sp_int
 import constants_new as const
-import config as config
+
 
 """
 Cubic Root solver
@@ -65,7 +65,7 @@ Ionisation and Temperature of Outflow (Requires Velocity and Masslossrate)
 """
 
 
-def ionisation_eq(r, N, star, planet, model_parameters):
+def ionisation_eq(r, N, star, planet, model_parameters, photoionization_rate):
     #RHS of ionization equation
 
     u = velocity_planetary_wind(r, star, planet, model_parameters) #velocity of outflow at r
@@ -73,19 +73,21 @@ def ionisation_eq(r, N, star, planet, model_parameters):
     if u < 5e4: #gas moving below that velocity will probably be far below the tau = 1 surface, so we assume it is not ionised at all
         return 0
     else:
-        return -(N * config.photoionization_rate(planet.semimajoraxis - r, model_parameters.L_EUV)  / u) + (model_parameters.mdot_planet * (1 - N)**2 * const.recombination_rate_caseA)/(4 * np.pi * r**2 * u**2)
+        return -(N * photoionization_rate(planet.semimajoraxis - r)  / u) + (model_parameters.mdot_planet * (1 - N)**2 * const.recombination_rate_caseA)/(4 * np.pi * r**2 * u**2)
 
 
 
-def neutral_frac_planetary_wind(star, planet, model_parameters):
+def neutral_frac_planetary_wind(star, planet, model_parameters, photoionization_rate):
 
     hill_sphere_radius = planet.semimajoraxis * (planet.mass / (3 * star.mass))**(1/3)
+    r_a = const.G * planet.mass / (2 * model_parameters.c_s_planet**2)    #critical point if stellar gravity ignored
+    r_c = cardano_formula(hill_sphere_radius**3/r_a, -hill_sphere_radius**3)
 
     N_init = 1 #initial neutral fraction set to 1 at planet radius
 
-    ionisation_eq_eval = partial(ionisation_eq, star = star, planet = planet, model_parameters = model_parameters)
+    ionisation_eq_eval = partial(ionisation_eq, star = star, planet = planet, model_parameters = model_parameters, photoionization_rate = photoionization_rate)
 
-    sol = sp_int.solve_ivp(ionisation_eq_eval, [planet.radius , hill_sphere_radius], [N_init], dense_output = 'True', rtol = 1e-13, atol = 1e-13, method = 'LSODA')
+    sol = sp_int.solve_ivp(ionisation_eq_eval, [2 * r_c, hill_sphere_radius], [N_init], dense_output = 'True', rtol = 1e-13, atol = 1e-13, method = 'LSODA')
 
     return sol
 
@@ -107,7 +109,7 @@ Outputs of 1D hill sphere model to tail model
 --------------------------------------------
 """
 
-def planetary_wind(star, planet, model_parameters):
+def planetary_wind(star, planet, model_parameters, photoionization_rate):
     """
     returns: velocity (float), neutral fraction (float) and temperature (float) at hill radius
     """
@@ -116,7 +118,7 @@ def planetary_wind(star, planet, model_parameters):
 
     velocity_at_hill_radius = velocity_planetary_wind(hill_sphere_radius, star, planet, model_parameters)
 
-    neutral_fraction_at_hill_radius = neutral_frac_planetary_wind(star, planet, model_parameters).y[0][-1]
+    neutral_fraction_at_hill_radius = neutral_frac_planetary_wind(star, planet, model_parameters, photoionization_rate).y[0][-1]
 
     temperature_at_hill_radius = temperature(neutral_fraction_at_hill_radius, model_parameters)
 

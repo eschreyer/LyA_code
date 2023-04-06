@@ -14,6 +14,9 @@ The orbital plane is inclined with respect to the x-y plane by i."""
 """
 Functions that do coordinate transformations for arbitary points/vectors from
 orbital plane to transit coords
+
+Important: Both convert_point_on_orbitalplane_to_transitcoords and convert_vector_on_orbitalplane_to_transitcoords
+do this transformation in the inertial frame
 ------------------------------------------------------------------------------
 """
 
@@ -72,7 +75,7 @@ Functions that change tail trajectory from
 
 """
 
-def change_tail_trajectory_from_orbitalplane_to_transitcoords(orbital_plane_solution, theta_offset, i):
+def change_tail_trajectory_from_orbitalplane_to_transitcoords(orbital_plane_solution, theta_offset, omega_p, i):
     """
 
 
@@ -96,8 +99,9 @@ def change_tail_trajectory_from_orbitalplane_to_transitcoords(orbital_plane_solu
     tail_position = convert_point_on_orbitalplane_to_transitcoords(orbital_plane_solution.y[1], orbital_plane_solution.y[3] + theta_offset, i)
 
 
-    tail_velocity = convert_vector_on_orbitalplane_to_transitcoords(orbital_plane_solution.y[0], orbital_plane_solution.y[2], orbital_plane_solution.y[1], orbital_plane_solution.y[3] + theta_offset, i)
+    tail_velocity = convert_vector_on_orbitalplane_to_transitcoords(orbital_plane_solution.y[0], orbital_plane_solution.y[2] + omega_p * orbital_plane_solution.y[1], orbital_plane_solution.y[1], orbital_plane_solution.y[3] + theta_offset, i)
     #remember it should be in the from U_phi not phi_dot
+    #i think this is wrong
 
     tail_transitcoords_array = TailTransitCoordArray(s = orbital_plane_solution.t,
                                                    x = tail_position[0],

@@ -3,7 +3,6 @@ import scipy.integrate as sp_int
 import constants_new as const
 import tail_object_holders_new as to
 import Parker_wind_planet_new as pw
-import config as config
 from functools import partial
 
 
@@ -26,7 +25,7 @@ def Centrifugal_Force(r, star, planet):
     omega = np.sqrt(const.G*star.mass/planet.semimajoraxis**3)
     return omega**2 * r
 
-def Ram_Pressure_Force(u_x, u_y, x, y, star, planet, model_parameters, height):
+def Ram_Pressure_Force(u_x, u_y, x, y, star, planet, model_parameters, height, SW):
     """
     approximate force through the tail due to the stellar wind ram pressure
 
@@ -40,11 +39,7 @@ def Ram_Pressure_Force(u_x, u_y, x, y, star, planet, model_parameters, height):
 
     u_s = np.sqrt(u_x**2 + u_y**2)
 
-    v_stellar_wind = config.get_u_stellar_wind(r, model_parameters.v_stellar_wind)
-    SW = config.StellarWind(model_parameters.mdot_star, 1, lambda r : config.get_u_stellar_wind(r, model_parameters.v_stellar_wind), lambda r : config.get_T_stellar_wind(r, model_parameters.T_stellar_wind))
     ram_pressure_stellar_wind = SW.ram_pressure(r)
-    #ram_pressure_stellar_wind = config.sw_ram_pressure(r, model_parameters)
-    #print((model_parameters.mdot_star * model_parameters.v_stellar_wind) / (4 * np.pi * r**2))
 
     if (u_x*np.cos(phi) + u_y*np.sin(phi)) < model_parameters.v_stellar_wind:
 
@@ -58,7 +53,7 @@ def Ram_Pressure_Force(u_x, u_y, x, y, star, planet, model_parameters, height):
 Solving the tail equations
 --------------------------------------------------
 """
-def trajectory_equations(s, w, star, planet, model_parameters, rho_struc):
+def trajectory_equations(s, w, star, planet, model_parameters, rho_struc, SW, photoionization_rate):
     """
     Outputs the equations that solve the geometry (position and velocity) and ionization fraction of the tail as a
     function of the distance down the streamline
@@ -88,17 +83,17 @@ def trajectory_equations(s, w, star, planet, model_parameters, rho_struc):
 
 
 
-    u_x_eq = (1/u_s)*((Ram_Pressure_Force(w[0], w[1], w[2], w[3], star, planet, model_parameters, height) - G_Force(r, star) + Centrifugal_Force(r, star, planet))*np.cos(phi) + 2*np.sqrt(const.G*star.mass/planet.semimajoraxis**3)*w[1])
-    u_y_eq = (1/u_s)*((Ram_Pressure_Force(w[0], w[1], w[2], w[3], star, planet, model_parameters, height) - G_Force(r, star) + Centrifugal_Force(r, star, planet))*np.sin(phi) - 2*np.sqrt(const.G*star.mass/planet.semimajoraxis**3)*w[0])
+    u_x_eq = (1/u_s)*((Ram_Pressure_Force(w[0], w[1], w[2], w[3], star, planet, model_parameters, height, SW) - G_Force(r, star) + Centrifugal_Force(r, star, planet))*np.cos(phi) + 2*np.sqrt(const.G*star.mass/planet.semimajoraxis**3)*w[1])
+    u_y_eq = (1/u_s)*((Ram_Pressure_Force(w[0], w[1], w[2], w[3], star, planet, model_parameters, height, SW) - G_Force(r, star) + Centrifugal_Force(r, star, planet))*np.sin(phi) - 2*np.sqrt(const.G*star.mass/planet.semimajoraxis**3)*w[0])
     x_eq = w[0]/u_s
     y_eq = w[1]/u_s
-    neutral_fraction_eq = - w[4] * config.photoionization_rate(r, model_parameters.L_EUV) / u_s + (model_parameters.mdot_planet / (np.pi * height * depth * const.m_proton * u_s**2)) * (1 - w[4])**2 * const.recombination_rate_caseA
+    neutral_fraction_eq = - w[4] * photoionization_rate(r) / u_s + (model_parameters.mdot_planet / (np.pi * height * depth * const.m_proton * u_s**2)) * (1 - w[4])**2 * const.recombination_rate_caseA
 
     return [u_x_eq, u_y_eq, x_eq, y_eq, neutral_fraction_eq]
 
 
 
-def trajectory_solution_cartesian(star, planet, model_parameters, rho_struc):
+def trajectory_solution_cartesian(star, planet, model_parameters, rho_struc, SW, photoionization_rate):
 
     """
     Uses
@@ -118,12 +113,12 @@ def trajectory_solution_cartesian(star, planet, model_parameters, rho_struc):
     #initial velocity, neutral fraction and temperature conditions in tail
     #maybe remove temperature --- not neccessary
 
-    velocity_init, neutral_frac_init, temperature_init = pw.planetary_wind(star, planet, model_parameters)
+    velocity_init, neutral_frac_init, temperature_init = pw.planetary_wind(star, planet, model_parameters, photoionization_rate)
     wind_angle = model_parameters.angle
     hill_sphere_radius = planet.semimajoraxis*(planet.mass/(3*star.mass))**(1/3)
 
 
-    trajectory_eq = partial(trajectory_equations, star = star, planet = planet, model_parameters = model_parameters, rho_struc = rho_struc)
+    trajectory_eq = partial(trajectory_equations, star = star, planet = planet, model_parameters = model_parameters, rho_struc = rho_struc, SW = SW, photoionization_rate = photoionization_rate)
 
     #for now just stop the tail if it moves above y = 0
     def stop_tail(s, w):
@@ -153,14 +148,14 @@ def trajectory_solution_cartesian(star, planet, model_parameters, rho_struc):
 
     return sol
 
-def trajectory_solution_polar(star, planet, model_parameters, rho_struc):
+def trajectory_solution_polar(star, planet, model_parameters, rho_struc, SW, photoionization_rate):
 
     """
     Convert the into polar coordinates in the orbital plane. We take theta = 0 to be inline with the
     postive x-axis and measure it anticlockwise
     """
 
-    sol_cartesian = trajectory_solution_cartesian(star, planet, model_parameters, rho_struc)
+    sol_cartesian = trajectory_solution_cartesian(star, planet, model_parameters, rho_struc, SW, photoionization_rate)
 
     r_sol = np.sqrt(sol_cartesian.y[2]**2 + sol_cartesian.y[3]**2)
 
