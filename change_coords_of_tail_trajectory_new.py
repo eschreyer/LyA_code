@@ -46,7 +46,7 @@ def convert_point_on_orbitalplane_to_transitcoords(r, theta, i):
 
 
 
-def convert_vector_on_orbitalplane_to_transitcoords(A_r, A_theta, r, theta, i):
+def convert_vector_on_orbitalplane_to_transitcoords(A_r, A_theta, r, theta, i, omega_rot = 0):
     """
     The idea is the same as the above, except we want to convert vectors.
 
@@ -62,11 +62,25 @@ def convert_vector_on_orbitalplane_to_transitcoords(A_r, A_theta, r, theta, i):
     theta: The angular coordinate in the orbital plane
 
     i: Inclination
+
+    omega_rot: if omega_rot is specified, then do rotating frame transformation
     """
-    A_x = A_r * np.cos(theta) - A_theta * np.sin(theta)
-    A_y = A_r * np.sin(theta) * np.cos(i) + A_theta * np.cos(theta) * np.cos(i)
-    A_z = A_r * np.sin(theta) * np.sin(i) + A_theta * np.cos(theta) * np.sin(i)
+    A_x = A_r * np.cos(theta) - (A_theta + omega_rot * r) * np.sin(theta)
+    A_y = A_r * np.sin(theta) * np.cos(i) + (A_theta + omega_rot * r) * np.cos(theta) * np.cos(i)
+    A_z = A_r * np.sin(theta) * np.sin(i) + (A_theta + omega_rot * r) * np.cos(theta) * np.sin(i)
     return np.array([A_x, A_y, A_z])
+
+
+def convert_vector_in_transitcoords_from_rotating_to_inertial(A_x, A_y, A_z, x, y, z, omega_p, i):
+
+    r = np.sqrt(x**2 + y**2 + z**2)
+    theta = np.arctan2(np.sqrt(y**2 + z**2), x)
+    A_xi = A_x - omega_p * r * np.sin(theta)
+    A_yi = A_y + omega_p * r * np.cos(theta) * np.cos(i)
+    A_zi = A_z + omega_p * r * np.cos(theta) * np.sin(i)
+    return np.array([A_xi, A_yi, A_zi])
+
+
 
 
 
@@ -75,7 +89,7 @@ Functions that change tail trajectory from
 
 """
 
-def change_tail_trajectory_from_orbitalplane_to_transitcoords(orbital_plane_solution, theta_offset, omega_p, i):
+def change_tail_trajectory_from_orbitalplane_to_transitcoords(orbital_plane_solution, theta_offset, i, omega_p = 0):
     """
 
 
@@ -90,6 +104,10 @@ def change_tail_trajectory_from_orbitalplane_to_transitcoords(orbital_plane_solu
 
     i: inclination
 
+    omega_p: as our orbital plane solution is a rotating reference, we can use this factor to turn into a inertial
+    reference frame. If you want inertial, set factor to keplerian velocity. If you want rotating, set to zero
+    Set to zero by defualt because we do ray tracing in rotating frame. We only want to change velocities for doppler shift purposes.
+
     Returns
     ---------------
     A TailTransitCoordArray named tuple object
@@ -100,8 +118,7 @@ def change_tail_trajectory_from_orbitalplane_to_transitcoords(orbital_plane_solu
 
 
     tail_velocity = convert_vector_on_orbitalplane_to_transitcoords(orbital_plane_solution.y[0], orbital_plane_solution.y[2] + omega_p * orbital_plane_solution.y[1], orbital_plane_solution.y[1], orbital_plane_solution.y[3] + theta_offset, i)
-    #remember it should be in the from U_phi not phi_dot
-    #i think this is wrong
+    #the ray tracing should be done in the inertial frame but the velocities for the doppler shift need to be calculated in the rotating frame
 
     tail_transitcoords_array = TailTransitCoordArray(s = orbital_plane_solution.t,
                                                    x = tail_position[0],

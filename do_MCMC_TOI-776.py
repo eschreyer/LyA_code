@@ -26,6 +26,7 @@ args = parser.parse_args()
 
 if args.backend:
     logging.basicConfig(filename = args.backend[:-2] + 'log')
+    logger = logging.getLogger(__name__)
 
 
 #import configuration file
@@ -33,13 +34,13 @@ config = importlib.import_module(args.config)
 
 #instantiate posterior class
 
-posterior_maker = p.PosteriorMaker(config.constant_parameters_star, config.constant_parameters_planet, config.evaluate_log_prior, config.configuration_parameters, config.transit_parameters, config.fit_package, config.logL_fnct)
+posterior_maker = p.PosteriorMaker(config.constant_parameters_star, config.constant_parameters_planet, config.evaluate_log_prior, config.configuration_parameters, config.transit_parameters, config.fit_package, config.logL_fnct, config.is_ENA_on)
 
 def main(target_file, restart = False, only_blue = False, weight_fluxes = False):
 
     #chain params
-    n_walkers = 22
-    n_iterations = 10
+    n_walkers = 100
+    n_iterations = 10000
 
     #sampled parameters and initial values
     sampled_parameters = config.sampled_parameters

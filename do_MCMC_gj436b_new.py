@@ -60,7 +60,7 @@ evaluate_log_prior = config.evaluate_log_prior
 def main(target_file, restart = False, only_blue = False, weight_fluxes = False):
 
     #make posterior function
-    evaluate_posterior = p.make_log_posterior_fn(constant_parameters, evaluate_log_prior, configuration_parameters, only_blue = only_blue, weight_fluxes = weight_fluxes)
+    evaluate_posterior = p.make_log_posterior_fn(constant_parameters, evaluate_log_prior, configuration_parameters, config.tgrid, config.transit_rng, hill_sphere = args.hill_sphere, only_blue = only_blue, weight_fluxes = weight_fluxes)
 
     #chain params
     n_walkers = 100

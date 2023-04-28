@@ -3,6 +3,9 @@ import scipy.special as sp_special
 from functools import partial
 import scipy.integrate as sp_int
 import constants_new as const
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 """
@@ -43,7 +46,12 @@ def velocity_planetary_wind(r, star, planet, model_parameters):
     r_c = cardano_formula(R_L**3/r_a, -R_L**3)                            #critical point
     D = (r/r_c)**-4 * np.exp(4 * r_a * (1 / r_c - 1 / r) + (2 * r_a / R_L**3) * (r_c**2 - r**2) - 1)
 
-    return np.where(r < r_c, np.sqrt(-model_parameters.c_s_planet**2 * np.real(sp_special.lambertw(-D,0))), np.sqrt(-model_parameters.c_s_planet**2 * np.real(sp_special.lambertw(-D,-1))))
+    u = np.where(r < r_c, np.sqrt(-model_parameters.c_s_planet**2 * np.real(sp_special.lambertw(-D,0))), np.sqrt(-model_parameters.c_s_planet**2 * np.real(sp_special.lambertw(-D,-1))))
+
+    if np.isnan(u).any():
+        logger.warning('watch out nan velocity, here are the parameters' + f"the parameters are {str(model_parameters)}")
+
+    return np.where(np.isnan(u), model_parameters.c_s_planet, u)
 
 
     """if r < r_c:
@@ -65,19 +73,24 @@ Ionisation and Temperature of Outflow (Requires Velocity and Masslossrate)
 """
 
 
-def ionisation_eq(r, N, star, planet, model_parameters, photoionization_rate):
-    #RHS of ionization equation
+def ionisation_eq_w_tau(r, N, star, planet, model_parameters, photoionization_rate):
+
+    #calculate tau
 
     u = velocity_planetary_wind(r, star, planet, model_parameters) #velocity of outflow at r
 
-    if u < 5e4: #gas moving below that velocity will probably be far below the tau = 1 surface, so we assume it is not ionised at all
-        return 0
-    else:
-        return -(N * photoionization_rate(planet.semimajoraxis - r)  / u) + (model_parameters.mdot_planet * (1 - N)**2 * const.recombination_rate_caseA)/(4 * np.pi * r**2 * u**2)
+    hill_sphere_radius = planet.semimajoraxis * (planet.mass / (3 * star.mass))**(1/3)
+
+    def dtau(r_1, star, planet, model_parameters):
+
+        return (density_planetary_wind(r_1, star, planet, model_parameters) / const.m_proton) * const.HI_crosssection * (13.6 / 20)**3
+
+    tau = sp_int.quad(dtau, r, hill_sphere_radius, args=(star, planet, model_parameters))
+
+    return -(N * photoionization_rate(planet.semimajoraxis - r) * np.exp(-tau[0])  / u) + (model_parameters.mdot_planet * (1 - N)**2 * const.recombination_rate_caseA)/(4 * np.pi * r**2 * u**2)
 
 
-
-def neutral_frac_planetary_wind(star, planet, model_parameters, photoionization_rate):
+def neutral_frac_planetary_wind(star, planet, model_parameters, photoionization_rate, tau = False):
 
     hill_sphere_radius = planet.semimajoraxis * (planet.mass / (3 * star.mass))**(1/3)
     r_a = const.G * planet.mass / (2 * model_parameters.c_s_planet**2)    #critical point if stellar gravity ignored
@@ -85,9 +98,21 @@ def neutral_frac_planetary_wind(star, planet, model_parameters, photoionization_
 
     N_init = 1 #initial neutral fraction set to 1 at planet radius
 
-    ionisation_eq_eval = partial(ionisation_eq, star = star, planet = planet, model_parameters = model_parameters, photoionization_rate = photoionization_rate)
+    if tau == True:
 
-    sol = sp_int.solve_ivp(ionisation_eq_eval, [2 * r_c, hill_sphere_radius], [N_init], dense_output = 'True', rtol = 1e-13, atol = 1e-13, method = 'LSODA')
+        ionisation_eq_eval = partial(ionisation_eq_w_tau, star = star, planet = planet, model_parameters = model_parameters, photoionization_rate = photoionization_rate)
+
+    else:
+
+        ionisation_eq_eval = partial(ionisation_eq, star = star, planet = planet, model_parameters = model_parameters, photoionization_rate = photoionization_rate)
+
+    if 1.1 * r_c < hill_sphere_radius:
+
+        sol = sp_int.solve_ivp(ionisation_eq_eval, [1.1*r_c, hill_sphere_radius], [N_init], dense_output = 'False', rtol = 1e-13, atol = 1e-13, method = 'LSODA')
+
+    else:
+
+        sol = sp_int.solve_ivp(ionisation_eq_eval, [hill_sphere_radius / 4, hill_sphere_radius], [N_init], dense_output = 'False', rtol = 1e-13, atol = 1e-13, method = 'LSODA')
 
     return sol
 
@@ -118,7 +143,7 @@ def planetary_wind(star, planet, model_parameters, photoionization_rate):
 
     velocity_at_hill_radius = velocity_planetary_wind(hill_sphere_radius, star, planet, model_parameters)
 
-    neutral_fraction_at_hill_radius = neutral_frac_planetary_wind(star, planet, model_parameters, photoionization_rate).y[0][-1]
+    neutral_fraction_at_hill_radius = neutral_frac_planetary_wind(star, planet, model_parameters, photoionization_rate, tau = True).y[0][-1]
 
     temperature_at_hill_radius = temperature(neutral_fraction_at_hill_radius, model_parameters)
 

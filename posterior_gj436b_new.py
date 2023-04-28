@@ -8,6 +8,9 @@ import Observation_new_v2.chi2_gj436 as obs
 import xsection_new as xs
 import constants_new as const
 import logging
+import do_transit_hill as dth
+import Parker_wind_planet_new as pw
+import scipy.interpolate as sp_int
 
 
 def convert_to_linspace(dic):
@@ -20,7 +23,7 @@ def convert_to_linspace(dic):
     return new_dict
 
 
-def make_log_posterior_fn(constant_parameters, evaluate_log_prior, configuration_parameters, only_blue = False, weight_fluxes = False):
+def make_log_posterior_fn(constant_parameters, evaluate_log_prior, configuration_parameters, tgrid, transit_rng, hill_sphere = False, only_blue = False, weight_fluxes = False):
     """
     Parameters
     ------------------
@@ -35,17 +38,20 @@ def make_log_posterior_fn(constant_parameters, evaluate_log_prior, configuration
     #make comparison to obs fnctn
     vgrid = np.concatenate((np.arange(-1e8, -4e7, 4e6), np.arange(-4e7, 4e7, 1e5), np.arange(4e7, 1.04e8, 4e6)))  #(-1000 km/s, 1000 km/s)                                               #-1000km/s to 1000km/s
     wavgrid = (1 + np.asarray(vgrid) / const.c) * 1215.67                           #IN ANGSTROMS! (Not CGS)
-    wgrid = (1 - np.asarray(vgrid) / const.c) * const.LyA_linecenter_w              #IN
+    wgrid = (1 - np.asarray(vgrid) / const.c) * const.LyA_linecenter_w              #IN CGS
 
-    tgrid = np.concatenate((np.linspace(0.8, 10, 23), np.linspace(25.2, 31.5, 18))) #IN HOURS
+
     phasegrid = tgrid * np.sqrt(constant_parameters['mass_s'] * const.G / constant_parameters['semimajoraxis']**3) * 3600 + np.pi/2
 
-    oot_profile, oot_data, transit_data, simulate_spectra, get_lightcurves, compute_chi2, compute_logL = obs.make_transit_chi2_tools(wavgrid, tgrid)
+    oot_profile, oot_data, transit_data, simulate_spectra, get_lightcurves, compute_chi2, compute_logL = obs.make_transit_chi2_tools(wavgrid, tgrid, transit_rng)
 
     #make transit fnct
-    do_transit = dt.make_transit_tools(constant_parameters['radius_s'], 15)
-    #stellar r cells is 15
-    #z cells variable
+    do_transit, _ = dt.make_transit_tools(constant_parameters['radius_s'], 15)
+
+    if hill_sphere == True:
+
+        do_transit_hill = dth.make_transit_tools_hill_and_ena(constant_parameters['radius_s'], 15)
+
 
     def evaluate_posterior(mcmc_log_parameters):
 
@@ -64,11 +70,31 @@ def make_log_posterior_fn(constant_parameters, evaluate_log_prior, configuration
         #make_photoionisation_rate
         photoionization_rate = configuration_parameters['make_photoionization_rate'](parameters)
 
+        #get planet keplerian velocity
+        omega_p = np.sqrt(const.G * parameters['mass_s'] / parameters['semimajoraxis']**3)
+
         #make_ENA_structure
         if 'make_ENA' in configuration_parameters:
             ENA = configuration_parameters['make_ENA'](parameters)
         else:
             ENA = None
+
+        if hill_sphere == True:
+            def density(z, y_c):
+                r = np.sqrt(z**2 + y_c**2)
+                return pw.density_planetary_wind(r, star, planet, model_parameters)
+
+            def velocity(z, y_c):
+                r = np.sqrt(z**2 + y_c**2)
+                return pw.velocity_planetary_wind(r, star, planet, model_parameters) * z / r
+
+            neutral_frac = pw.neutral_frac_planetary_wind(star, planet, model_parameters, photoionization_rate, tau = True)
+            neutral_frac_interpolant = sp_int.InterpolatedUnivariateSpline(neutral_frac.t, neutral_frac.y, ext = 3)
+            def neutral_fraction(z, y_c):
+                r = np.sqrt(z**2 + y_c**2)
+                return neutral_frac_interpolant(r)
+
+            pw_functions = {'density' : density, 'neutral_fraction' : neutral_fraction, 'z_velocity' : velocity}
 
         #evaluate prior
         logP = evaluate_log_prior(mcmc_log_parameters, constant_parameters)
@@ -91,7 +117,10 @@ def make_log_posterior_fn(constant_parameters, evaluate_log_prior, configuration
                     return -np.inf
                 else:
                     tail = ttc.trajectory_solution_polar(star, planet, model_parameters, rho_struc, SW, photoionization_rate)
-                    phase, model_intensity = do_transit(tail, phasegrid, wgrid, rho_struc, parameters['inclination'], ENA = ENA)
+                    phase, model_intensity = do_transit(tail, phasegrid, wgrid, rho_struc, omega_p, parameters['inclination'], ENA = ENA)
+                    if hill_sphere == True:
+                        phse_hill, model_intensity_hill = do_transit_hill(parameters, pw_functions, phasegrid, wgrid, parameters['inclination'], ENA = ENA)
+                        model_intensity *= model_intensity_hill
                     logL = compute_logL(1 - model_intensity, only_blue = only_blue, weight_fluxes = weight_fluxes)
                     logPosterior = logL + logP
                     return logPosterior
