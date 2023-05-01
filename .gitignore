@@ -6,4 +6,4 @@
 
 !.gitignore
 !*.py
-!config_files/*/*.py
+!config_files
