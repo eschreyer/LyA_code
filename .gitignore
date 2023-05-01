@@ -7,3 +7,5 @@
 !.gitignore
 !*.py
 !config_files
+!config_files/*
+!config_files/*/*
