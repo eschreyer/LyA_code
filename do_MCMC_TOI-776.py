@@ -34,12 +34,12 @@ config = importlib.import_module(args.config)
 
 #instantiate posterior class
 
-posterior_maker = p.PosteriorMaker(config.constant_parameters_star, config.constant_parameters_planet, config.evaluate_log_prior, config.configuration_parameters, config.transit_parameters, config.fit_package, config.logL_fnct, config.is_ENA_on)
-
+posterior_maker = p.PosteriorMaker(config.constant_parameters_star, config.constant_parameters_planet, config.mcmc_parameters_key_list, config.evaluate_log_prior, config.configuration_parameters, config.transit_parameters, config.fit_package, config.logL_fnct, config.is_ENA_on)
+# make posterior as I cannot get any in real lif
 def main(target_file, restart = False, only_blue = False, weight_fluxes = False):
 
     #chain params
-    n_walkers = 100
+    n_walkers = 26
     n_iterations = 10000
 
     #sampled parameters and initial values

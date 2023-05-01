@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class PosteriorMaker():
-    def __init__(self, constant_parameters_star, constant_parameters_planet, evaluate_log_prior, configuration_parameters, transit_parameters, fit_package, logL_fnct, is_ENA_on = False):
+    def __init__(self, constant_parameters_star, constant_parameters_planet, mcmc_parameters_key_list, evaluate_log_prior, configuration_parameters, transit_parameters, fit_package, logL_fnct, is_ENA_on = False):
         """
 
         Parameters
@@ -38,6 +38,7 @@ class PosteriorMaker():
 
         self.constant_parameters_star = constant_parameters_star
         self.constant_parameters_planet = constant_parameters_planet
+        self.mcmc_parameters_key_list = mcmc_parameters_key_list
         self.evaluate_log_prior = evaluate_log_prior
         self.configuration_parameters = configuration_parameters
         self.fit_package = fit_package
@@ -46,9 +47,11 @@ class PosteriorMaker():
         self.do_transit_hill = [dth.make_transit_tools_hill_and_ena(constant_parameters_star['radius_s'], n_star_cells = 15) for tp in transit_parameters]
         self.is_ENA_on = is_ENA_on
 
-    def partition_mcmc_log_parameters(self, mcmc_log_parameters, ENA = False):
+    def partition_mcmc_log_parameters(self, mcmc_log_parameters):
 
-        if ENA == True:
+        log_parameters = [{k1:mcmc_log_parameters[k] for k,k1 in zip(key_list[0], key_list[1])} for key_list in self.mcmc_parameters_key_list]
+
+        """if ENA == True:
 
             planetb_key_list = ['c_s_planetb', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'inclinationb', 'u_ENA', 'L_mix']
             planetc_key_list = ['c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'inclinationc', 'u_ENA', 'L_mix']
@@ -64,14 +67,14 @@ class PosteriorMaker():
         log_parameters_planetb = {k1:mcmc_log_parameters[k] for k1,k in zip(key_list,planetb_key_list)}
         log_parameters_planetc = {k1:mcmc_log_parameters[k] for k1,k in zip(key_list,planetc_key_list)}
 
-        log_parameters = [log_parameters_planetb, log_parameters_planetc]
+        log_parameters = [log_parameters_planetb, log_parameters_planetc]"""
 
         return log_parameters
 
     def convert_to_linspace(self, dic):
         new_dict = {}
         for key in dic:
-            if key == 'angle' or key == 'inclination':
+            if key == 'angle' or key == 'inclination' or key == 'mass_p':
                 new_dict[key] = dic[key]
             else:
                 new_dict[key] = 10**dic[key]
@@ -150,7 +153,7 @@ class PosteriorMaker():
 
         #first partition mcmc log parameters
 
-        log_parameters = self.partition_mcmc_log_parameters(mcmc_log_parameters, self.is_ENA_on)
+        log_parameters = self.partition_mcmc_log_parameters(mcmc_log_parameters)
 
         #now check priors
 
