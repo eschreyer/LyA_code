@@ -4,6 +4,7 @@ import numpy as np
 import TOI_776_Obs_Package2.chi2 as c2
 import TOI_776_Obs_Package2.stis as stis
 from astropy import table
+import functools
 
 
 
@@ -232,18 +233,20 @@ Sampled Parameters
                           'u_ENA', 'L_mix'} ENA param """
 
 constant_parameters_star = {'mass_s' : 0.544*const.m_sun, 'radius_s' : 0.538*const.r_sun, 'T_stellar_wind' : 0.5e6}
-constant_parameters_planetb = {'radius_p' : 1.85*const.r_earth, 'semimajoraxis' : 0.0652*1.5e13}
-constant_parameters_planetc = {'radius_p' : 2.02*const.r_earth, 'semimajoraxis' : 0.10*1.5e13}
+constant_parameters_planetb = {'radius_p' : 1.85*const.r_earth, 'semimajoraxis' : 0.0652*1.5e13, 'inclination' : 1.565}
+constant_parameters_planetc = {'radius_p' : 2.02*const.r_earth, 'semimajoraxis' : 0.10*1.5e13, 'inclination' : 1.563}
 constant_parameters_planet = [constant_parameters_planetb, constant_parameters_planetc]
 
 
-sampled_parameters = ['c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'anglec', 'inclinationb', 'inclinationc', 'mass_pb', 'mass_pc']
-sampled_parameter_guess = np.array([6, 8.5, 6, 8.5, 7.4, 12, 28, (3/4)*np.pi, (3/4)*np.pi, 1.565, 1.563, 4 * const.m_earth, 5.3 * const.m_earth])
+sampled_parameters = ['c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'anglec', 'mass_pb', 'mass_pc']
+sampled_parameter_guess = np.array([6, 8.5, 6, 8.5, 7.4, 12, 28, (3/4)*np.pi, (3/4)*np.pi, 4 * const.m_earth, 5.3 * const.m_earth])
 
-planetb_key_list = ['c_s_planetb', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'inclinationb', 'mass_pb']
-planetc_key_list = ['c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'inclinationc', 'mass_pc']
-key_list = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'inclination', 'mass_p']
+planetb_key_list = ['c_s_planetb', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'mass_pb']
+planetc_key_list = ['c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'mass_pc']
+key_list = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'mass_p']
 mcmc_parameters_key_list = [[planetb_key_list, key_list], [planetc_key_list, key_list]]
+
+is_mlr_ratio = False
 
 #assert that dimensions make sense
 
@@ -280,12 +283,13 @@ def evaluate_log_priorb(lp, constant_parameters):
     and 6.5 <= lp['v_stellar_wind'] <= 8\
     and 10.3 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\
-    and np.pi/2 <= lp['angle'] <= np.pi:
+    and np.pi/2 <= lp['angle'] <= np.pi\
+    and const.m_earth <= lp['mass_p']:
 
         #gaussian priors for mass and inclination
-        mu = np.array([4 * const.m_earth, 1.565])
-        sigma = np.array([0.9 * const.m_earth, 0.005])
-        lp_val = - 0.5 * ((np.array([lp['mass_p'], lp['inclination']]) - mu)**2 / sigma **2 + np.log(2 * np.pi * sigma**2))
+        mu = np.array([4 * const.m_earth])
+        sigma = np.array([0.9 * const.m_earth])
+        lp_val = - 0.5 * ((np.array([lp['mass_p']]) - mu)**2 / sigma **2 + np.log(2 * np.pi * sigma**2))
 
         return np.sum(lp_val)
 
@@ -316,12 +320,13 @@ def evaluate_log_priorc(lp, constant_parameters):
     and 6.5 <= lp['v_stellar_wind'] <= 8\
     and 10.3 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\
-    and np.pi/2 <= lp['angle'] <= np.pi:
+    and np.pi/2 <= lp['angle'] <= np.pi\
+    and const.m_earth <= lp['mass_p']:
 
         #gaussian priors for inclination
-        mu = np.array([5.3 * const.m_earth, 1.563])
-        sigma = np.array([1.8 * const.m_earth, 0.005])
-        lp_val = - 0.5 * ((np.array([lp['mass_p'], lp['inclination']]) - mu)**2 / sigma **2 + np.log(2 * np.pi * sigma**2))
+        mu = np.array([5.3 * const.m_earth])
+        sigma = np.array([1.8 * const.m_earth])
+        lp_val = - 0.5 * ((np.array([lp['mass_p']]) - mu)**2 / sigma **2 + np.log(2 * np.pi * sigma**2))
 
         return np.sum(lp_val)
 
@@ -338,7 +343,7 @@ observational fitting functions
 
 #planet b
 
-vgridb = np.concatenate((np.arange(-1.5e8, -4e7, 1e7), np.arange(-4e7, 4e7, 1e5), np.arange(4e7, 1.6e8, 1e7)))
+vgridb = np.arange(-2e7, 2e7, 2e5)
 wavgridb = (1 + np.asarray(vgridb) / const.c) * 1215.67
 tgridb = np.concatenate((np.linspace(-41, -40, 3), np.linspace(-1.8, 1.3, 10)))
 
@@ -376,7 +381,7 @@ specc = stis.g140l
 g140l_lya = c2.FitPackage(wavgridc, tgridc, specc, datac, linec, wrest=1215.67, normalize=False)
 
 fit_package = [g140m_lya, g140l_lya]
-logL_fnct = [g140m_lya.compute_logL_with_spectrum, g140l_lya.compute_logL_with_full_band_lightcurve]
+logL_fnct = [functools.partial(g140m_lya.compute_logL_with_partial_band_lightcurve, band = [-42, 63]), g140l_lya.compute_logL_with_full_band_lightcurve]
 
 """
 random seeds

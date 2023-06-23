@@ -62,6 +62,16 @@ def LyA_xsection(w, absorber_v, T):
     LyA_xsection = voigt_xsection(w, absorber_w0, f_LyA, Gamma_LyA, T, const.m_proton)
     return LyA_xsection
 
+#OI transit in the UV at 1302 A
+
+def OI_xsection(w, absorber_v, T):
+    OI_rest_w = const.c / 130.2168e-7 #rest frequency in s^-1
+    absorber_w0 = doppler_shift(OI_rest_w, absorber_v)
+    f_OI = 5.20e-2
+    Gamma_OI = 3.41e8
+    OI_xsection = voigt_xsection(w, absorber_w0, f_OI, Gamma_OI, T, 16 * const.m_proton)
+    return OI_xsection
+
 
 def d_tau(mass_density, xsection, mmw, ds):
     d_tau = mass_density / mmw * xsection * ds

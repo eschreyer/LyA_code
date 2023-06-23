@@ -26,7 +26,7 @@ This configuration file configures
 
 - Priors
 
-We include uncertainty in mass of the planet
+We include the uncertainty in the mass of the planet
 
 Quick description of particular configuration file:
 
@@ -136,7 +136,8 @@ get_D_dimensionless = density.Gaussian2D.make_D_interpolant(is_zeta_zero = True)
 
 def make_rho_struc(parameters):
 
-    c_s = np.sqrt(2) * np.sqrt(const.k_b * 10**4 / const.m_proton)   #parameters['c_s_planet']
+    mu = (16 * parameters['o_frac'] + 1) / (2 * (parameters['o_frac'] + 1))
+    c_s = np.sqrt(const.k_b * 10**4 / (mu * const.m_proton))     #if we assume hydrogen is completely ionized and oxygen is one ionized mu = 18/5
     mass_s = parameters['mass_s']
     a = parameters['semimajoraxis']
     SW = StellarWind(parameters['mdot_star'], 1, lambda r : get_u_stellar_wind(r, parameters['v_stellar_wind']), lambda r : get_T_stellar_wind(r, parameters['T_stellar_wind']))
@@ -233,13 +234,13 @@ Sampled Parameters
                           'u_ENA', 'L_mix'} ENA param """
 
 constant_parameters_star = {'mass_s' : 0.544*const.m_sun, 'radius_s' : 0.538*const.r_sun, 'T_stellar_wind' : 0.5e6}
-constant_parameters_planetb = {'radius_p' : 1.85*const.r_earth, 'semimajoraxis' : 0.0652*1.5e13, 'inclination' : 1.565}
-constant_parameters_planetc = {'radius_p' : 2.02*const.r_earth, 'semimajoraxis' : 0.10*1.5e13, 'inclination' : 1.563}
+constant_parameters_planetb = {'radius_p' : 1.85*const.r_earth, 'semimajoraxis' : 0.0652*1.5e13, 'inclination' : 1.565, 'o_frac' : 0.5}
+constant_parameters_planetc = {'radius_p' : 2.02*const.r_earth, 'semimajoraxis' : 0.10*1.5e13, 'inclination' : 1.563, 'o_frac' : 0}
 constant_parameters_planet = [constant_parameters_planetb, constant_parameters_planetc]
 
 
 sampled_parameters = ['c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'anglec', 'mass_pb', 'mass_pc']
-sampled_parameter_guess = np.array([5.8, 8.8, 6.1, 8.8, 7, 11.5, 28.5, (3/5)*np.pi, (3/5)*np.pi, 4 * const.m_earth, 5.3 * const.m_earth])
+sampled_parameter_guess = np.array([6, 7, 6, 8.5, 7.4, 12, 28, (3/4)*np.pi, (3/4)*np.pi, 4 * const.m_earth, 5.3 * const.m_earth])
 
 planetb_key_list = ['c_s_planetb', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'mass_pb']
 planetc_key_list = ['c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'mass_pc']
@@ -272,24 +273,31 @@ def evaluate_log_priorb(lp, constant_parameters):
     --------------------
     """
     #calculate energy limited mass loss rate
+    if const.m_earth >= lp['mass_p']:
+        return -np.inf
 
     F_XUV = 10**lp['L_EUV'] / (4 * np.pi * constant_parameters['semimajoraxis']**2)
     energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * lp['mass_p'])
+    energy_limited_mlr_H = energy_limited_mlr / (1 + 16 * constant_parameters['o_frac'])
+    print(F_XUV)
+    print(constant_parameters['radius_p'])
+    print(constant_parameters['semimajoraxis'])
+    print(energy_limited_mlr)
     #first check and calculate prior
 
     #uniform(and log uniform priors)
-    if 5.2 <= lp['c_s_planet'] <= 6.5\
-    and 7 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr)\
+    if 5 <= lp['c_s_planet'] <= 6.5\
+    and 6 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr_H)\
     and 6.5 <= lp['v_stellar_wind'] <= 8\
     and 10.3 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\
-    and np.pi/2 <= lp['angle'] <= np.pi\
-    and const.m_earth <= lp['mass_p']:
+    and np.pi/2 <= lp['angle'] <= np.pi:
 
-        #gaussian priors for inclination
+        #gaussian priors for mass and inclination
         mu = np.array([4 * const.m_earth])
         sigma = np.array([0.9 * const.m_earth])
         lp_val = - 0.5 * ((np.array([lp['mass_p']]) - mu)**2 / sigma **2 + np.log(2 * np.pi * sigma**2))
+
         return np.sum(lp_val)
 
     else:
@@ -308,19 +316,21 @@ def evaluate_log_priorc(lp, constant_parameters):
     --------------------
     """
     #calculate energy limited mass loss rate
+    if const.m_earth >= lp['mass_p']:
+        return -np.inf
 
     F_XUV = 10**lp['L_EUV'] / (4 * np.pi * constant_parameters['semimajoraxis']**2)
     energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * lp['mass_p'])
+    energy_limited_mlr_H = energy_limited_mlr / (1 + 16 * constant_parameters['o_frac'])
     #first check and calculate prior
 
     #uniform(and log uniform priors)
-    if 5.2 <= lp['c_s_planet'] <= 6.5\
-    and 7 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr)\
+    if 5 <= lp['c_s_planet'] <= 6.5\
+    and 7 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr_H)\
     and 6.5 <= lp['v_stellar_wind'] <= 8\
     and 10.3 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\
-    and np.pi/2 <= lp['angle'] <= np.pi\
-    and const.m_earth <= lp['mass_p']:
+    and np.pi/2 <= lp['angle'] <= np.pi:
 
         #gaussian priors for inclination
         mu = np.array([5.3 * const.m_earth])
@@ -387,10 +397,9 @@ random seeds
 ----------------------------------------------------------------------------------------------------------------------------
 """
 
-random_seed_init_guess = 209189
+random_seed_init_guess = 176
 
-random_seed_chain = 62073003
-
+random_seed_chain = 250697
 
 
 """

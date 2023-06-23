@@ -209,15 +209,15 @@ def make_ENA(parameters):
 
     return ENA_c
 
-is_ENA_on = False
+is_ENA_on = True
 
 """
 configuration parameters list
 --------------------------------------------------------------------------------------------------------------------
 """
 
-configuration_parametersb = {'make_rho_struc' : make_rho_struc, 'make_stellar_wind' : make_stellar_wind, 'make_photoionization_rate' : make_photoionization_rate}
-configuration_parametersc = {'make_rho_struc' : make_rho_struc, 'make_stellar_wind' : make_stellar_wind, 'make_photoionization_rate' : make_photoionization_rate}
+configuration_parametersb = {'make_rho_struc' : make_rho_struc, 'make_stellar_wind' : make_stellar_wind, 'make_photoionization_rate' : make_photoionization_rate, 'make_ENA' : make_ENA}
+configuration_parametersc = {'make_rho_struc' : make_rho_struc, 'make_stellar_wind' : make_stellar_wind, 'make_photoionization_rate' : make_photoionization_rate, 'make_ENA' : make_ENA}
 configuration_parameters = [configuration_parametersb, configuration_parametersc]
 
 
@@ -238,15 +238,15 @@ constant_parameters_planetc = {'radius_p' : 2.02*const.r_earth, 'semimajoraxis' 
 constant_parameters_planet = [constant_parameters_planetb, constant_parameters_planetc]
 
 
-sampled_parameters = ['c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'anglec', 'mass_pb', 'mass_pc']
-sampled_parameter_guess = np.array([5.8, 8.8, 6.1, 8.8, 7, 11.5, 28.5, (3/5)*np.pi, (3/5)*np.pi, 4 * const.m_earth, 5.3 * const.m_earth])
+sampled_parameters = ['c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'anglec', 'u_ENA', 'L_mix', 'mass_pb', 'mass_pc']
+sampled_parameter_guess = np.array([5.7, 8.8, 6.1, 7, 11.5, 28.5, (3/5)*np.pi, (3/5)*np.pi, 6.6, -1, 4 * const.m_earth, 5.3 * const.m_earth])
 
-planetb_key_list = ['c_s_planetb', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'mass_pb']
-planetc_key_list = ['c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'mass_pc']
-key_list = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'mass_p']
+planetb_key_list = ['c_s_planetb', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'u_ENA', 'L_mix', 'mass_pb']
+planetc_key_list = ['c_s_planetc', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'u_ENA', 'L_mix', 'mass_pc']
+key_list = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'u_ENA', 'L_mix', 'mass_p']
 mcmc_parameters_key_list = [[planetb_key_list, key_list], [planetc_key_list, key_list]]
 
-is_mlr_ratio = False
+is_mlr_ratio = True
 
 #assert that dimensions make sense
 
@@ -272,6 +272,8 @@ def evaluate_log_priorb(lp, constant_parameters):
     --------------------
     """
     #calculate energy limited mass loss rate
+    if const.m_earth >= lp['mass_p']:
+        return -np.inf
 
     F_XUV = 10**lp['L_EUV'] / (4 * np.pi * constant_parameters['semimajoraxis']**2)
     energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * lp['mass_p'])
@@ -284,7 +286,8 @@ def evaluate_log_priorb(lp, constant_parameters):
     and 10.3 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\
     and np.pi/2 <= lp['angle'] <= np.pi\
-    and const.m_earth <= lp['mass_p']:
+    and -2 <= lp['L_mix'] <= -0.5\
+    and 6.4 <= lp['u_ENA'] <= lp['v_stellar_wind']:
 
         #gaussian priors for inclination
         mu = np.array([4 * const.m_earth])
@@ -308,6 +311,8 @@ def evaluate_log_priorc(lp, constant_parameters):
     --------------------
     """
     #calculate energy limited mass loss rate
+    if const.m_earth >= lp['mass_p']:
+        return -np.inf
 
     F_XUV = 10**lp['L_EUV'] / (4 * np.pi * constant_parameters['semimajoraxis']**2)
     energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * lp['mass_p'])
@@ -320,7 +325,8 @@ def evaluate_log_priorc(lp, constant_parameters):
     and 10.3 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\
     and np.pi/2 <= lp['angle'] <= np.pi\
-    and const.m_earth <= lp['mass_p']:
+    and -2 <= lp['L_mix'] <= -0.5\
+    and 6.4 <= lp['u_ENA'] <= lp['v_stellar_wind']:
 
         #gaussian priors for inclination
         mu = np.array([5.3 * const.m_earth])

@@ -244,6 +244,8 @@ planetc_key_list = ['c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star'
 key_list = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'inclination']
 mcmc_parameters_key_list = [[planetb_key_list, key_list], [planetc_key_list, key_list]]
 
+is_mlr_ratio = False
+
 #assert that dimensions make sense
 
 """if is_ENA_on:

@@ -1,16 +1,10 @@
 import density_Gaussian2D_test_new as density
 import constants_new as const
 import numpy as np
-import TOI_776_Obs_Package2.chi2 as c2
-import TOI_776_Obs_Package2.stis as stis
-from astropy import table
-import functools
-
-
 
 
 """
-Configuration File: TOI766 System
+Configuration File:
 
 This configuration file configures
 
@@ -25,8 +19,6 @@ This configuration file configures
 - Sampled Parameters
 
 - Priors
-
-We include uncertainty in mass of the planet
 
 Quick description of particular configuration file:
 
@@ -210,50 +202,29 @@ def make_ENA(parameters):
     return ENA_c
 
 is_ENA_on = False
-
-"""
-configuration parameters list
---------------------------------------------------------------------------------------------------------------------
-"""
-
-configuration_parametersb = {'make_rho_struc' : make_rho_struc, 'make_stellar_wind' : make_stellar_wind, 'make_photoionization_rate' : make_photoionization_rate}
-configuration_parametersc = {'make_rho_struc' : make_rho_struc, 'make_stellar_wind' : make_stellar_wind, 'make_photoionization_rate' : make_photoionization_rate}
-configuration_parameters = [configuration_parametersb, configuration_parametersc]
-
-
 """
 ---------------------------------------------------------------------------------------------------------------------
 Sampled Parameters
 """
 
 """table of parameters : {'mass_s', 'radius_s' STAR PARAM
-                          'mass_pb', 'radius_pb', 'semimajoraxisb', 'inclinationb' PLANET b PARAM
-                          'mass_pc', 'radius_pc', 'semimajoraxisc', 'inclinationc' PLANET c PARAM
-                          'c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'mdot_planetc', v_stellar_wind', 'mdot_star', 'T_stellar_wind', 'L_EUV', 'angle' MODEL PARAM
+                          'mass_p', 'radius_p', 'semimajoraxis', 'inclination' PLANET PARAM
+                          'c_s_planet', 'mdot_planet' , v_stellar_wind', 'mdot_star', 'T_stellar_wind', 'L_EUV', 'angle' MODEL PARAM
                           'u_ENA', 'L_mix'} ENA param """
 
-constant_parameters_star = {'mass_s' : 0.544*const.m_sun, 'radius_s' : 0.538*const.r_sun, 'T_stellar_wind' : 0.5e6}
-constant_parameters_planetb = {'radius_p' : 1.85*const.r_earth, 'semimajoraxis' : 0.0652*1.5e13, 'inclination' : 1.565}
-constant_parameters_planetc = {'radius_p' : 2.02*const.r_earth, 'semimajoraxis' : 0.10*1.5e13, 'inclination' : 1.563}
-constant_parameters_planet = [constant_parameters_planetb, constant_parameters_planetc]
+constant_parameters = {'mass_s' : 0.45*const.m_sun, 'radius_s' : 0.425*const.r_sun,
+                       'mass_p' : 0.07*const.m_jupiter, 'radius_p' : 0.35 * const.r_jupiter, 'semimajoraxis' : 4.35e11,
+                       'T_stellar_wind' : 0.5e6}
 
-
-sampled_parameters = ['c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'anglec', 'mass_pb', 'mass_pc']
-sampled_parameter_guess = np.array([5.8, 8.8, 6.1, 8.8, 7, 11.5, 28.5, (3/5)*np.pi, (3/5)*np.pi, 4 * const.m_earth, 5.3 * const.m_earth])
-
-planetb_key_list = ['c_s_planetb', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'mass_pb']
-planetc_key_list = ['c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'mass_pc']
-key_list = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'mass_p']
-mcmc_parameters_key_list = [[planetb_key_list, key_list], [planetc_key_list, key_list]]
-
-is_mlr_ratio = False
+sampled_parameters = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'inclination']
+sampled_parameter_guess = np.array([6, 8.9, 7.4, 12, 27.2, (3/4)*np.pi, 1.51])
 
 #assert that dimensions make sense
 
-"""if is_ENA_on:
-    assert len(constant_parameters) + len(sampled_parameters) == 21
+if is_ENA_on:
+    assert len(constant_parameters) + len(sampled_parameters) == 15
 else:
-    assert len(constant_parameters) + len(sampled_parameters) == 19"""
+    assert len(constant_parameters) + len(sampled_parameters) == 13
 
 
 """
@@ -261,7 +232,7 @@ else:
 Priors
 """
 
-def evaluate_log_priorb(lp, constant_parameters):
+def evaluate_log_prior(lp, constant_parameters):
     """
     Parameters
     --------------------
@@ -274,136 +245,51 @@ def evaluate_log_priorb(lp, constant_parameters):
     #calculate energy limited mass loss rate
 
     F_XUV = 10**lp['L_EUV'] / (4 * np.pi * constant_parameters['semimajoraxis']**2)
-    energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * lp['mass_p'])
+    energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * constant_parameters['mass_p'])
     #first check and calculate prior
 
     #uniform(and log uniform priors)
     if 5.2 <= lp['c_s_planet'] <= 6.5\
-    and 7 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr)\
-    and 6.5 <= lp['v_stellar_wind'] <= 8\
-    and 10.3 <= lp['mdot_star'] <= 13\
+    and 8 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr)\
+    and 6.5 <= lp['v_stellar_wind'] <= 8.5\
+    and 10 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\
-    and np.pi/2 <= lp['angle'] <= np.pi\
-    and const.m_earth <= lp['mass_p']:
+    and np.pi/2 <= lp['angle'] <= np.pi:
+    #and 0.01 <= lp['L_mix'] <= 0.1\
+    #and 6.4 <= lp['u_ENA'] <= 8:
 
-        #gaussian priors for inclination
-        mu = np.array([4 * const.m_earth])
-        sigma = np.array([0.9 * const.m_earth])
-        lp_val = - 0.5 * ((np.array([lp['mass_p']]) - mu)**2 / sigma **2 + np.log(2 * np.pi * sigma**2))
-        return np.sum(lp_val)
+        #gaussian priors
+        mu = 1.51
+        sigma = 0.02
+        lp_val = - 0.5 * ((lp['inclination'] - mu)**2 / sigma **2 + np.log(2 * np.pi * sigma**2))
+
+        return lp_val
 
     else:
 
         return -np.inf
 
-
-def evaluate_log_priorc(lp, constant_parameters):
-    """
-    Parameters
-    --------------------
-    lp : log_sampled_parameters
-
-    constant parameters :
-    Returns
-    --------------------
-    """
-    #calculate energy limited mass loss rate
-
-    F_XUV = 10**lp['L_EUV'] / (4 * np.pi * constant_parameters['semimajoraxis']**2)
-    energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * lp['mass_p'])
-    #first check and calculate prior
-
-    #uniform(and log uniform priors)
-    if 5.2 <= lp['c_s_planet'] <= 6.5\
-    and 7 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr)\
-    and 6.5 <= lp['v_stellar_wind'] <= 8\
-    and 10.3 <= lp['mdot_star'] <= 13\
-    and 26 <= lp['L_EUV'] <= 29\
-    and np.pi/2 <= lp['angle'] <= np.pi\
-    and const.m_earth <= lp['mass_p']:
-
-        #gaussian priors for inclination
-        mu = np.array([5.3 * const.m_earth])
-        sigma = np.array([1.8 * const.m_earth])
-        lp_val = - 0.5 * ((np.array([lp['mass_p']]) - mu)**2 / sigma **2 + np.log(2 * np.pi * sigma**2))
-
-        return np.sum(lp_val)
-
-    else:
-
-        return -np.inf
-
-evaluate_log_prior = [evaluate_log_priorb, evaluate_log_priorc]
-
 """
-observational fitting functions
-----------------------------------------------------------------------------------------------------------------------------
+transit range
+------------------------------------------------------------------------------------------------------------------------
 """
 
-#planet b
-
-vgridb = np.arange(-2e7, 2e7, 2e5)
-wavgridb = (1 + np.asarray(vgridb) / const.c) * 1215.67
-tgridb = np.concatenate((np.linspace(-41, -40, 3), np.linspace(-1.8, 1.3, 10)))
-
-path_aggregated_datab = 'TOI_776_Obs_Package2/pubdata/g140m_aggregated_data_in_system_frame.fits'
-datab = table.Table.read(path_aggregated_datab)
-datab['pha'] = datab['pha_b']
-datab['phb'] = datab['phb_b']
-datab['ph'] = datab['ph_b']
-datab.sort('ph')
-path_oot_line_profileb = 'TOI_776_Obs_Package2/pubdata/lya_fit_g140m.ecsv'
-lineb = table.Table.read(path_oot_line_profileb)
-specb = stis.g140m
-g140m_lya = c2.FitPackage(wavgridb, tgridb, specb, datab, lineb, wrest=1215.67, normalize=(100, 250))
-
-#planet c
-
-vgridc = np.concatenate((np.arange(-1.5e8, -4e7, 1e7), np.arange(-4e7, 4e7, 1e5), np.arange(4e7, 1.6e8, 1e7)))
-wavgridc = (1 + np.asarray(vgridc) / const.c) * 1215.67
-tgridc = np.concatenate((np.linspace(-43.5, -41, 8), np.linspace(-2.3, 2, 12)))
-
-path_aggregated_datac = 'TOI_776_Obs_Package2/pubdata/g140l_aggregated_data_in_system_frame.fits'
-datac = table.Table.read(path_aggregated_datac)
-datac['pha'] = datac['pha_c']
-datac['phb'] = datac['phb_c']
-datac['ph'] = datac['ph_c']
-datac.sort('ph')
-
-#we only want data from the last epoch of observations, which happened starting on MJD 2459933
-keep = datac['t'] > 2459933
-datac = datac[keep]
-
-path_oot_line_profilec = 'TOI_776_Obs_Package2/pubdata/lya_fit_rescaled_to_g140l_epoch.ecsv'
-linec = table.Table.read(path_oot_line_profilec)
-specc = stis.g140l
-g140l_lya = c2.FitPackage(wavgridc, tgridc, specc, datac, linec, wrest=1215.67, normalize=False)
-
-fit_package = [g140m_lya, g140l_lya]
-logL_fnct = [functools.partial(g140m_lya.compute_logL_with_partial_band_lightcurve, band = [-42, 63]), g140l_lya.compute_logL_with_full_band_lightcurve]
+transit_rng = (1.3, 31.4)
+tgrid = np.concatenate((np.linspace(0.8, 10, 23), np.linspace(25.2, 31.5, 18)))
 
 """
 random seeds
 ----------------------------------------------------------------------------------------------------------------------------
 """
 
-random_seed_init_guess = 209189
+random_seed_init_guess = 176
 
-random_seed_chain = 62073003
-
+random_seed_chain = 250697
 
 
 """
 -----------------------------------------------------------------------------------------------------------------------------------
-"""
 
-transit_parametersb = {'n_star_cells' : 15, 'n_z_cells' : None}
-transit_parametersc = {'n_star_cells' : 15, 'n_z_cells' : None}
-
-transit_parameters = [transit_parametersb, transit_parametersc]
-
-"""
-------------------------------------------------------------------------------------------------------------------------------------
 Here we list a number of parameters which we fix throughout the simulation. These are split into physical parameters that control the tail and simulation parameters
 that control the
 

@@ -248,7 +248,7 @@ def get_tau_at_phase(xy_grid, z_grid, cartesian_solution, w, rho_struc, inclinat
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 #tau grid calculation including ENA
 """
-def get_tau_at_phase_pw(xy_grid, z_grid, cartesian_solution, w, rho_struc, omega_p, inclination, ENA = None, make_new_ENA_grid = True, u_los = None):
+def get_tau_at_phase_pw(xy_grid, z_grid, cartesian_solution, w, rho_struc, omega_p, inclination, atomic_xsection = xs.LyA_xsection, ENA = None, make_new_ENA_grid = True, u_los = None):
 
     #this gets the positions on the tail (if there are two it returns the one which is the minimum distance)
     flat_nz_xyz_grid, flat_nz_s_grid, s_position_grid, s_velocity_grid, flat_nz_s_grid_ix = find_s_grid(xy_grid, z_grid, cartesian_solution) #shape (k), shape (k,3), shape (k,3)
@@ -305,7 +305,7 @@ def get_tau_at_phase_pw(xy_grid, z_grid, cartesian_solution, w, rho_struc, omega
 
         w_mesh_pw, z_velocity_mesh_pw = np.meshgrid(w, z_velocity_pw)  #write as o_grid to speed up but beware indices are swapped
 
-        x_section_grid_pw = xs.LyA_xsection(w_mesh_pw, z_velocity_mesh_pw, rho_struc.c_s**2 * const.m_proton / (2 * const.k_b))  #shape (k1, l) , #where l is the number of wavelength points
+        x_section_grid_pw = atomic_xsection(w_mesh_pw, z_velocity_mesh_pw, rho_struc.c_s**2 * const.m_proton / (2 * const.k_b))  #shape (k1, l) , #where l is the number of wavelength points
 
         dtau_grid_flat_pw = xs.d_tau(np.reshape(density_grid_pw * neutral_fraction_grid_pw, (len(density_grid_pw), 1)), x_section_grid_pw, const.m_proton, z_grid[1] - z_grid[0]) #shape (k, l)
 
@@ -477,28 +477,28 @@ def make_transit_tools(star_radius, n_star_cells, n_z_cells = None):
 
 
 
-    def do_transit(tail_polar, phase, w, rho_struc, omega_p, inclination, ENA = None, make_new_ENA_grid = True, u_los = None):
+    def do_transit(tail_polar, phase, w, rho_struc, omega_p, inclination, atomic_xsection = xs.LyA_xsection, ENA = None, make_new_ENA_grid = True, u_los = None):
 
         intensity_array = np.empty((len(phase), len(w)))
 
         for index, p in enumerate(phase):
             tail_transitcoords_array = cc.change_tail_trajectory_from_orbitalplane_to_transitcoords(tail_polar, p, inclination)
             z_grid, new_transitcoords_array = get_z_grid(tail_transitcoords_array, rho_struc, ENA, n_z_cells)
-            tau_grid = get_tau_at_phase_pw(star_grid, z_grid, new_transitcoords_array, w, rho_struc, omega_p, inclination, ENA, make_new_ENA_grid, u_los)
+            tau_grid = get_tau_at_phase_pw(star_grid, z_grid, new_transitcoords_array, w, rho_struc, omega_p, inclination, atomic_xsection, ENA, make_new_ENA_grid, u_los)
             intensity = np.einsum('i, ij -> j', areas_array, np.exp(-tau_grid)) / (np.pi * star_radius**2)
             intensity_array[index, :] = intensity
 
         return phase, intensity_array
 
 
-    def do_transit_phase(tail_polar, phase, w, rho_struc, omega_p, inclination, ENA = None, make_new_ENA_grid = True, u_los = None):
+    def do_transit_phase(tail_polar, phase, w, rho_struc, omega_p, inclination, atomic_xsection = xs.LyA_xsection, ENA = None, make_new_ENA_grid = True, u_los = None):
 
         tau_grid_array = np.empty((len(phase), len(star_grid), len(w)))
 
         for index, p in enumerate(phase):
             tail_transitcoords_array = cc.change_tail_trajectory_from_orbitalplane_to_transitcoords(tail_polar, p, inclination)
             z_grid, new_transitcoords_array = get_z_grid(tail_transitcoords_array, rho_struc, ENA, n_z_cells)
-            tau_grid = get_tau_at_phase_pw(star_grid, z_grid, new_transitcoords_array, w, rho_struc, omega_p, inclination, ENA, make_new_ENA_grid, u_los)
+            tau_grid = get_tau_at_phase_pw(star_grid, z_grid, new_transitcoords_array, w, rho_struc, omega_p, inclination, atomic_xsection, ENA, make_new_ENA_grid, u_los)
             tau_grid_array[index, :, :] = tau_grid
 
         return phase, tau_grid_array

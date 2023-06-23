@@ -26,7 +26,7 @@ This configuration file configures
 
 - Priors
 
-We include uncertainty in mass of the planet
+We include the uncertainty in the mass of the planet
 
 Quick description of particular configuration file:
 
@@ -134,9 +134,9 @@ Density Structure
 
 get_D_dimensionless = density.Gaussian2D.make_D_interpolant(is_zeta_zero = True)
 
-def make_rho_struc(parameters):
+def make_rho_strucb(parameters):
 
-    c_s = np.sqrt(2) * np.sqrt(const.k_b * 10**4 / const.m_proton)   #parameters['c_s_planet']
+    c_s = np.sqrt(const.k_b * 10**4 / ((18 / 5) * const.m_proton))     #if we assume hydrogen is completely ionized and oxygen is one ionized mu = 18/5
     mass_s = parameters['mass_s']
     a = parameters['semimajoraxis']
     SW = StellarWind(parameters['mdot_star'], 1, lambda r : get_u_stellar_wind(r, parameters['v_stellar_wind']), lambda r : get_T_stellar_wind(r, parameters['T_stellar_wind']))
@@ -171,6 +171,7 @@ def make_rho_struc(parameters):
     rho_struc = density.Gaussian2D(parameters['mdot_planet'], c_s, get_alpha, get_beta, get_zeta, get_PswD, get_D_dimensionless)
 
     return rho_struc
+
 
 """
 --------------------------------------------------------------------------------------------------------------------
@@ -239,7 +240,7 @@ constant_parameters_planet = [constant_parameters_planetb, constant_parameters_p
 
 
 sampled_parameters = ['c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'anglec', 'mass_pb', 'mass_pc']
-sampled_parameter_guess = np.array([5.8, 8.8, 6.1, 8.8, 7, 11.5, 28.5, (3/5)*np.pi, (3/5)*np.pi, 4 * const.m_earth, 5.3 * const.m_earth])
+sampled_parameter_guess = np.array([6, 8.5, 6, 8.5, 7.4, 12, 28, (3/4)*np.pi, (3/4)*np.pi, 4 * const.m_earth, 5.3 * const.m_earth])
 
 planetb_key_list = ['c_s_planetb', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'mass_pb']
 planetc_key_list = ['c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'mass_pc']
@@ -275,21 +276,23 @@ def evaluate_log_priorb(lp, constant_parameters):
 
     F_XUV = 10**lp['L_EUV'] / (4 * np.pi * constant_parameters['semimajoraxis']**2)
     energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * lp['mass_p'])
+    energy_limited_mlr_H = energy_limited_mlr / 9
     #first check and calculate prior
 
     #uniform(and log uniform priors)
-    if 5.2 <= lp['c_s_planet'] <= 6.5\
-    and 7 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr)\
+    if 5.2 + np.log10(5/18) <= lp['c_s_planet'] <= 6.5 + np.log10(5/18)\
+    and 7 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr_H)\
     and 6.5 <= lp['v_stellar_wind'] <= 8\
     and 10.3 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\
     and np.pi/2 <= lp['angle'] <= np.pi\
     and const.m_earth <= lp['mass_p']:
 
-        #gaussian priors for inclination
+        #gaussian priors for mass and inclination
         mu = np.array([4 * const.m_earth])
         sigma = np.array([0.9 * const.m_earth])
         lp_val = - 0.5 * ((np.array([lp['mass_p']]) - mu)**2 / sigma **2 + np.log(2 * np.pi * sigma**2))
+
         return np.sum(lp_val)
 
     else:
@@ -311,10 +314,11 @@ def evaluate_log_priorc(lp, constant_parameters):
 
     F_XUV = 10**lp['L_EUV'] / (4 * np.pi * constant_parameters['semimajoraxis']**2)
     energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * lp['mass_p'])
+    energy_limited_mlr_H = energy_limited_mlr / 9
     #first check and calculate prior
 
     #uniform(and log uniform priors)
-    if 5.2 <= lp['c_s_planet'] <= 6.5\
+    if 5.2 + np.log10(5/18) <= lp['c_s_planet'] <= 6.5 + np.log10(5/18)\
     and 7 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr)\
     and 6.5 <= lp['v_stellar_wind'] <= 8\
     and 10.3 <= lp['mdot_star'] <= 13\
@@ -387,10 +391,9 @@ random seeds
 ----------------------------------------------------------------------------------------------------------------------------
 """
 
-random_seed_init_guess = 209189
+random_seed_init_guess = 176
 
-random_seed_chain = 62073003
-
+random_seed_chain = 250697
 
 
 """

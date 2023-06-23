@@ -4,6 +4,7 @@ from functools import partial
 import scipy.integrate as sp_int
 import constants_new as const
 import logging
+import tail_object_holders_new as toh
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,16 @@ Ionisation and Temperature of Outflow (Requires Velocity and Masslossrate)
 --------------------------------------------------------------------------
 """
 
+def ionisation_eq(r, N, star, planet, model_parameters, photoionization_rate):
+    #RHS of ionization equation
+
+    u = velocity_planetary_wind(r, star, planet, model_parameters) #velocity of outflow at r
+
+    if u < 5e4: #gas moving below that velocity will probably be far below the tau = 1 surface, so we assume it is not ionised at all
+        return 0
+    else:
+        return -(N * photoionization_rate(planet.semimajoraxis - r)  / u) + (model_parameters.mdot_planet * (1 - N)**2 * const.recombination_rate_caseA)/(4 * np.pi * r**2 * u**2)
+
 
 def ionisation_eq_w_tau(r, N, star, planet, model_parameters, photoionization_rate):
 
@@ -106,14 +117,13 @@ def neutral_frac_planetary_wind(star, planet, model_parameters, photoionization_
 
         ionisation_eq_eval = partial(ionisation_eq, star = star, planet = planet, model_parameters = model_parameters, photoionization_rate = photoionization_rate)
 
-    if 1.1 * r_c < hill_sphere_radius:
+    if 1.01 * r_c < hill_sphere_radius:
 
-        sol = sp_int.solve_ivp(ionisation_eq_eval, [1.1*r_c, hill_sphere_radius], [N_init], dense_output = 'False', rtol = 1e-13, atol = 1e-13, method = 'LSODA')
+        sol = sp_int.solve_ivp(ionisation_eq_eval, [1.01*r_c, hill_sphere_radius], [N_init], dense_output = 'False', rtol = 1e-13, atol = 1e-13, method = 'LSODA')
 
     else:
 
-        sol = sp_int.solve_ivp(ionisation_eq_eval, [hill_sphere_radius / 4, hill_sphere_radius], [N_init], dense_output = 'False', rtol = 1e-13, atol = 1e-13, method = 'LSODA')
-
+        sol = toh.TailOrbitalPlanePolarArray(t = np.array([hill_sphere_radius]), y = np.array([[1]]))
     return sol
 
 def temperature(N, model_parameters):

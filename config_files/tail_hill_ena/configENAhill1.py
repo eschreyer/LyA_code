@@ -218,7 +218,7 @@ constant_parameters = {'mass_s' : 0.45*const.m_sun, 'radius_s' : 0.425*const.r_s
                        'T_stellar_wind' : 0.5e6}
 
 sampled_parameters = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'inclination', 'u_ENA', 'L_mix']
-sampled_parameter_guess = np.array([6, 8.9, 6.8, 12.1, 27.2, (3/4)*np.pi, 1.51, 7, -0.7])
+sampled_parameter_guess = np.array([6, 9.2, 7.2, 12.1, 27.5, (3/4)*np.pi, 1.51, 6.8, -0.7])
 
 #assert that dimensions make sense
 

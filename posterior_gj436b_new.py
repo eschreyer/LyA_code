@@ -79,22 +79,6 @@ def make_log_posterior_fn(constant_parameters, evaluate_log_prior, configuration
         else:
             ENA = None
 
-        if hill_sphere == True:
-            def density(z, y_c):
-                r = np.sqrt(z**2 + y_c**2)
-                return pw.density_planetary_wind(r, star, planet, model_parameters)
-
-            def velocity(z, y_c):
-                r = np.sqrt(z**2 + y_c**2)
-                return pw.velocity_planetary_wind(r, star, planet, model_parameters) * z / r
-
-            neutral_frac = pw.neutral_frac_planetary_wind(star, planet, model_parameters, photoionization_rate, tau = True)
-            neutral_frac_interpolant = sp_int.InterpolatedUnivariateSpline(neutral_frac.t, neutral_frac.y, ext = 3)
-            def neutral_fraction(z, y_c):
-                r = np.sqrt(z**2 + y_c**2)
-                return neutral_frac_interpolant(r)
-
-            pw_functions = {'density' : density, 'neutral_fraction' : neutral_fraction, 'z_velocity' : velocity}
 
         #evaluate prior
         logP = evaluate_log_prior(mcmc_log_parameters, constant_parameters)
@@ -105,6 +89,22 @@ def make_log_posterior_fn(constant_parameters, evaluate_log_prior, configuration
             return -np.inf
 
         else:
+            if hill_sphere == True:
+                def density(z, y_c):
+                    r = np.sqrt(z**2 + y_c**2)
+                    return pw.density_planetary_wind(r, star, planet, model_parameters)
+
+                def velocity(z, y_c):
+                    r = np.sqrt(z**2 + y_c**2)
+                    return pw.velocity_planetary_wind(r, star, planet, model_parameters) * z / r
+
+                neutral_frac = pw.neutral_frac_planetary_wind(star, planet, model_parameters, photoionization_rate, tau = True)
+                neutral_frac_interpolant = sp_int.InterpolatedUnivariateSpline(neutral_frac.t, neutral_frac.y, ext = 3)
+                def neutral_fraction(z, y_c):
+                    r = np.sqrt(z**2 + y_c**2)
+                    return neutral_frac_interpolant(r)
+
+                pw_functions = {'density' : density, 'neutral_fraction' : neutral_fraction, 'z_velocity' : velocity}
             try:
                 tail_solution_cartesian = ttc.trajectory_solution_cartesian(star, planet, model_parameters, rho_struc, SW, photoionization_rate)
             except (ValueError, RuntimeWarning):

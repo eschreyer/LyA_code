@@ -26,7 +26,7 @@ This configuration file configures
 
 - Priors
 
-We include uncertainty in mass of the planet
+We include the uncertainty in the mass of the planet
 
 Quick description of particular configuration file:
 
@@ -229,7 +229,7 @@ Sampled Parameters
 """table of parameters : {'mass_s', 'radius_s' STAR PARAM
                           'mass_pb', 'radius_pb', 'semimajoraxisb', 'inclinationb' PLANET b PARAM
                           'mass_pc', 'radius_pc', 'semimajoraxisc', 'inclinationc' PLANET c PARAM
-                          'c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'mdot_planetc', v_stellar_wind', 'mdot_star', 'T_stellar_wind', 'L_EUV', 'angle' MODEL PARAM
+                          'c_s_planetb', 'mdot_planet', 'c_s_planetc', v_stellar_wind', 'mdot_star', 'T_stellar_wind', 'L_EUV', 'angle' MODEL PARAM
                           'u_ENA', 'L_mix'} ENA param """
 
 constant_parameters_star = {'mass_s' : 0.544*const.m_sun, 'radius_s' : 0.538*const.r_sun, 'T_stellar_wind' : 0.5e6}
@@ -238,15 +238,15 @@ constant_parameters_planetc = {'radius_p' : 2.02*const.r_earth, 'semimajoraxis' 
 constant_parameters_planet = [constant_parameters_planetb, constant_parameters_planetc]
 
 
-sampled_parameters = ['c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'anglec', 'mass_pb', 'mass_pc']
-sampled_parameter_guess = np.array([5.8, 8.8, 6.1, 8.8, 7, 11.5, 28.5, (3/5)*np.pi, (3/5)*np.pi, 4 * const.m_earth, 5.3 * const.m_earth])
+sampled_parameters = ['c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'anglec', 'mass_pb', 'mass_pc']
+sampled_parameter_guess = np.array([6, 8.5, 6, 7.4, 12, 28, (3/4)*np.pi, (3/4)*np.pi, 4 * const.m_earth, 5.3 * const.m_earth])
 
 planetb_key_list = ['c_s_planetb', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'mass_pb']
-planetc_key_list = ['c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'mass_pc']
+planetc_key_list = ['c_s_planetc', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'mass_pc']
 key_list = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'mass_p']
 mcmc_parameters_key_list = [[planetb_key_list, key_list], [planetc_key_list, key_list]]
 
-is_mlr_ratio = False
+is_mlr_ratio = True
 
 #assert that dimensions make sense
 
@@ -286,10 +286,11 @@ def evaluate_log_priorb(lp, constant_parameters):
     and np.pi/2 <= lp['angle'] <= np.pi\
     and const.m_earth <= lp['mass_p']:
 
-        #gaussian priors for inclination
+        #gaussian priors for mass and inclination
         mu = np.array([4 * const.m_earth])
         sigma = np.array([0.9 * const.m_earth])
         lp_val = - 0.5 * ((np.array([lp['mass_p']]) - mu)**2 / sigma **2 + np.log(2 * np.pi * sigma**2))
+
         return np.sum(lp_val)
 
     else:
@@ -342,7 +343,7 @@ observational fitting functions
 
 #planet b
 
-vgridb = np.arange(-2e7, 2e7, 2e5)
+vgridb = np.arange(-2e7, 2e7, 2e5) #np.concatenate((np.arange(-1.5e8, -4e7, 1e7), np.arange(-4e7, 4e7, 1e5), np.arange(4e7, 1.6e8, 1e7)))
 wavgridb = (1 + np.asarray(vgridb) / const.c) * 1215.67
 tgridb = np.concatenate((np.linspace(-41, -40, 3), np.linspace(-1.8, 1.3, 10)))
 
@@ -387,10 +388,9 @@ random seeds
 ----------------------------------------------------------------------------------------------------------------------------
 """
 
-random_seed_init_guess = 209189
+random_seed_init_guess = 176
 
-random_seed_chain = 62073003
-
+random_seed_chain = 250697
 
 
 """

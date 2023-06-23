@@ -238,15 +238,15 @@ constant_parameters_planetc = {'radius_p' : 2.02*const.r_earth, 'semimajoraxis' 
 constant_parameters_planet = [constant_parameters_planetb, constant_parameters_planetc]
 
 
-sampled_parameters = ['c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'anglec', 'mass_pb', 'mass_pc']
-sampled_parameter_guess = np.array([5.8, 8.8, 6.1, 8.8, 7, 11.5, 28.5, (3/5)*np.pi, (3/5)*np.pi, 4 * const.m_earth, 5.3 * const.m_earth])
+sampled_parameters = ['c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'anglec', 'mass_pb', 'mass_pc']
+sampled_parameter_guess = np.array([5.8, 8.8, 6.1, 7, 11.5, 28.5, (3/5)*np.pi, (3/5)*np.pi, 4 * const.m_earth, 5.3 * const.m_earth])
 
 planetb_key_list = ['c_s_planetb', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'mass_pb']
-planetc_key_list = ['c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'mass_pc']
+planetc_key_list = ['c_s_planetc', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'mass_pc']
 key_list = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'mass_p']
 mcmc_parameters_key_list = [[planetb_key_list, key_list], [planetc_key_list, key_list]]
 
-is_mlr_ratio = False
+is_mlr_ratio = True
 
 #assert that dimensions make sense
 
