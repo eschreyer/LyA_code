@@ -166,7 +166,7 @@ class PosteriorMaker():
 
     def make_single_lightcurve(self, log_parameters, constant_parameters, configuration_parameters, do_transit, do_transit_hill, fit_package, logL_fnct, tgrid = None):
 
-        if tgrid == None:
+        if type(tgrid) == type(None):
             tgrid = fit_package.tgrid
 
         phasegrid = tgrid * np.sqrt(constant_parameters['mass_s'] * const.G / constant_parameters['semimajoraxis']**3) * 3600 + np.pi/2

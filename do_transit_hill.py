@@ -47,6 +47,7 @@ def tau_los(y_c, planet_velocity, pw_functions, planet_radius, hill_sphere_radiu
         w_mesh, z_velocity_mesh = np.meshgrid(wgrid, z_velocity_grid)
         #write as o_grid to speed up but beware indices are swapped
 
+        #remember everything is not at 10**4K
         xsection_grid = atomic_xsection(w_mesh, z_velocity_mesh, 10**4) #shape (k1, l) , #where l is the number of wavelength points
 
         dtau_grid = xs.d_tau(np.reshape(density_grid * neutral_fraction_grid, (len(density_grid), 1)), xsection_grid, const.m_proton, z_grid[1] - z_grid[0])
@@ -94,6 +95,7 @@ def make_transit_tools_hill(star_radius, n_star_cells, n_z_cells = None):
         for index, phase in enumerate(phase_grid):
             planet_position = cc.convert_point_on_orbitalplane_to_transitcoords(parameters['semimajoraxis'], phase, inclination)
             planet_velocity = cc.convert_vector_on_orbitalplane_to_transitcoords(0, 0, parameters['semimajoraxis'], phase, inclination)
+            print(planet_velocity)
             tau_grid = get_tau_at_phase_hill(star_grid, planet_position, planet_velocity, pw_functions, parameters['radius_p'], hill_sphere_radius, wgrid, atomic_xsection)
             intensity = np.einsum('i, ij -> j', areas_array, np.exp(-tau_grid)) / (np.pi * star_radius**2)
             intensity_array[index, :] = intensity

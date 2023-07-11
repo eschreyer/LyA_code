@@ -281,6 +281,10 @@ def evaluate_log_priorb(lp, constant_parameters):
     energy_limited_mlr_H = energy_limited_mlr / (1 + 16 * lp['o_frac'])
     #first check and calculate prior
 
+    #make maximum temperature 30,000K
+
+    max
+
     #uniform(and log uniform priors)
     if 5 <= lp['c_s_planet'] <= 6.5\
     and 6 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr_H)\

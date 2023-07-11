@@ -117,13 +117,13 @@ def neutral_frac_planetary_wind(star, planet, model_parameters, photoionization_
 
         ionisation_eq_eval = partial(ionisation_eq, star = star, planet = planet, model_parameters = model_parameters, photoionization_rate = photoionization_rate)
 
-    if 1.01 * r_c < hill_sphere_radius:
+    #if 1.01 * r_c < hill_sphere_radius:
 
-        sol = sp_int.solve_ivp(ionisation_eq_eval, [1.01*r_c, hill_sphere_radius], [N_init], dense_output = 'False', rtol = 1e-13, atol = 1e-13, method = 'LSODA')
+    sol = sp_int.solve_ivp(ionisation_eq_eval, [planet.radius, hill_sphere_radius], [N_init], dense_output = 'False', rtol = 1e-13, atol = 1e-13, method = 'LSODA')
 
-    else:
+    #else:
+    #sol = toh.TailOrbitalPlanePolarArray(t = np.array([hill_sphere_radius]), y = np.array([[1]]))
 
-        sol = toh.TailOrbitalPlanePolarArray(t = np.array([hill_sphere_radius]), y = np.array([[1]]))
     return sol
 
 def temperature(N, model_parameters):
