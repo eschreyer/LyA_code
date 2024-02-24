@@ -220,7 +220,6 @@ class PosteriorMaker():
 
 
 
-
     def make_lightcurves(self, mcmc_log_parameters, tgrids = [None, None]):
 
         log_parameters = self.partition_mcmc_log_parameters(mcmc_log_parameters)

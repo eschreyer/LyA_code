@@ -276,18 +276,21 @@ def evaluate_log_priorb(lp, constant_parameters):
     if const.m_earth >= lp['mass_p']:
         return -np.inf
 
+    if lp['o_frac'] < 0:
+        return -np.inf
+
     F_XUV = 10**lp['L_EUV'] / (4 * np.pi * constant_parameters['semimajoraxis']**2)
     energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * lp['mass_p'])
     energy_limited_mlr_H = energy_limited_mlr / (1 + 16 * lp['o_frac'])
     #first check and calculate prior
 
     #make maximum temperature 30,000K
-
-    max
+    mu1 = (16 * lp['o_frac'] + 1) / (2 * (lp['o_frac'] + 1))
+    max_cs = np.sqrt(const.k_b * 30000 / (mu1 * const.m_proton))
 
     #uniform(and log uniform priors)
-    if 5 <= lp['c_s_planet'] <= 6.5\
-    and 6 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr_H)\
+    if 5 <= lp['c_s_planet'] <= np.log10(max_cs)\
+    and 6 <= lp['mdot_planet'] <= (1 + np.log10(energy_limited_mlr_H))\
     and 6.5 <= lp['v_stellar_wind'] <= 8\
     and 10.3 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\
@@ -320,14 +323,21 @@ def evaluate_log_priorc(lp, constant_parameters):
     if const.m_earth >= lp['mass_p']:
         return -np.inf
 
+    if lp['o_frac'] < 0:
+        return -np.inf
+
     F_XUV = 10**lp['L_EUV'] / (4 * np.pi * constant_parameters['semimajoraxis']**2)
     energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * lp['mass_p'])
     energy_limited_mlr_H = energy_limited_mlr / (1 + 16 * lp['o_frac'])
     #first check and calculate prior
 
+    #make maximum temperature 30,000K
+    mu1 = (16 * lp['o_frac'] + 1) / (2 * (lp['o_frac'] + 1))
+    max_cs = np.sqrt(const.k_b * 30000 / (mu1 * const.m_proton))
+
     #uniform(and log uniform priors)
-    if 5 <= lp['c_s_planet'] <= 6.5\
-    and 6 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr_H)\
+    if 5 <= lp['c_s_planet'] <= np.log10(max_cs)\
+    and 6 <= lp['mdot_planet'] <= (1 + np.log10(energy_limited_mlr_H))\
     and 6.5 <= lp['v_stellar_wind'] <= 8\
     and 10.3 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\

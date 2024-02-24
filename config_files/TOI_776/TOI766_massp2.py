@@ -272,19 +272,20 @@ def evaluate_log_priorb(lp, constant_parameters):
     --------------------
     """
     #calculate energy limited mass loss rate
+    if const.m_earth >= lp['mass_p']:
+        return -np.inf
 
     F_XUV = 10**lp['L_EUV'] / (4 * np.pi * constant_parameters['semimajoraxis']**2)
     energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * lp['mass_p'])
     #first check and calculate prior
 
     #uniform(and log uniform priors)
-    if 5.2 <= lp['c_s_planet'] <= 6.5\
-    and 7 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr)\
+    if 5 <= lp['c_s_planet'] <= 6.35\
+    and 7 <= lp['mdot_planet'] <= (np.log10(energy_limited_mlr) + 1)\
     and 6.5 <= lp['v_stellar_wind'] <= 8\
     and 10.3 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\
-    and np.pi/2 <= lp['angle'] <= np.pi\
-    and const.m_earth <= lp['mass_p']:
+    and np.pi/2 <= lp['angle'] <= np.pi:
 
         #gaussian priors for inclination
         mu = np.array([4 * const.m_earth])
@@ -308,19 +309,20 @@ def evaluate_log_priorc(lp, constant_parameters):
     --------------------
     """
     #calculate energy limited mass loss rate
+    if const.m_earth >= lp['mass_p']:
+        return -np.inf
 
     F_XUV = 10**lp['L_EUV'] / (4 * np.pi * constant_parameters['semimajoraxis']**2)
     energy_limited_mlr = np.pi * F_XUV * constant_parameters['radius_p']**3 / (const.G * lp['mass_p'])
     #first check and calculate prior
 
     #uniform(and log uniform priors)
-    if 5.2 <= lp['c_s_planet'] <= 6.5\
-    and 7 <= lp['mdot_planet'] <= np.log10(energy_limited_mlr)\
+    if 5 <= lp['c_s_planet'] <= 6.35\
+    and 7 <= lp['mdot_planet'] <= (np.log10(energy_limited_mlr) + 1)\
     and 6.5 <= lp['v_stellar_wind'] <= 8\
     and 10.3 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\
-    and np.pi/2 <= lp['angle'] <= np.pi\
-    and const.m_earth <= lp['mass_p']:
+    and np.pi/2 <= lp['angle'] <= np.pi:
 
         #gaussian priors for inclination
         mu = np.array([5.3 * const.m_earth])

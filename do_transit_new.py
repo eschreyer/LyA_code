@@ -305,7 +305,7 @@ def get_tau_at_phase_pw(xy_grid, z_grid, cartesian_solution, w, rho_struc, omega
 
         w_mesh_pw, z_velocity_mesh_pw = np.meshgrid(w, z_velocity_pw)  #write as o_grid to speed up but beware indices are swapped
 
-        x_section_grid_pw = atomic_xsection(w_mesh_pw, z_velocity_mesh_pw, rho_struc.c_s**2 * const.m_proton / (2 * const.k_b))  #shape (k1, l) , #where l is the number of wavelength points
+        x_section_grid_pw = atomic_xsection(w_mesh_pw, z_velocity_mesh_pw, 10**4) #assume 10**4 #rho_struc.c_s**2 * const.m_proton / (2 * const.k_b))  #shape (k1, l) , #where l is the number of wavelength points
 
         dtau_grid_flat_pw = xs.d_tau(np.reshape(density_grid_pw * neutral_fraction_grid_pw, (len(density_grid_pw), 1)), x_section_grid_pw, const.m_proton, z_grid[1] - z_grid[0]) #shape (k, l)
 
@@ -361,33 +361,6 @@ def get_tau_at_phase_ENA(xyz_grid, xy_ix, xy_grid_shape, cartesian_solution, w, 
         tau_grid_ENA[index] += value
 
     return tau_grid_ENA
-
-
-
-
-
-
-
-
-
-
-"""if ENA == None:
-
-    return tau_grid_pw
-
-    n_ENA_cells = int(np.max([0.1 // ENA.L_mix, 4]))
-
-    max_to_min_h_ratio = np.max((depth_grid, height_grid)) / np.min((depth_grid, height_grid))
-
-    n_ex_cells = int((2 * max_to_min_h_ratio * ENA.L_mix) // 0.1 + 1)
-
-    xyz_grid_ENA, xy_ix = get_ENA_grid(flat_nz_s_grid_ix_pw, flat_nz_xyz_grid, flat_nz_s_grid_ix, n_ENA_cells, n_ex_cells, z_grid)
-
-    tau_grid_ENA = get_tau_at_phase_ENA(xyz_grid_ENA, xy_ix, len(xy_grid), cartesian_solution, w, rho_struc, inclination, (z_grid[1] - z_grid[0]) / n_ENA_cells, ENA, u_los = None)
-
-return tau_grid_pw + tau_grid_ENA"""
-
-
 
 
 """----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -491,7 +464,7 @@ def make_transit_tools(star_radius, n_star_cells, n_z_cells = None):
         return phase, intensity_array
 
 
-    def do_transit_phase(tail_polar, phase, w, rho_struc, omega_p, inclination, atomic_xsection = xs.LyA_xsection, ENA = None, make_new_ENA_grid = True, u_los = None):
+    def do_transit_tau(tail_polar, phase, w, rho_struc, omega_p, inclination, atomic_xsection = xs.LyA_xsection, ENA = None, make_new_ENA_grid = True, u_los = None):
 
         tau_grid_array = np.empty((len(phase), len(star_grid), len(w)))
 
@@ -503,48 +476,4 @@ def make_transit_tools(star_radius, n_star_cells, n_z_cells = None):
 
         return phase, tau_grid_array
 
-    return do_transit, do_transit_phase
-
-
-
-
-
-
-"""##ENA part
-
-##reduce grid, only keep points in ENA elliptical disc
-is_point_in_ellipse_ENA = find_is_point_in_ellipse_ENA(point_grid_ellipse_coords, height_grid, depth_grid, ENA)
-
-flat_nz_s_grid_ENA = flat_nz_s_grid[is_point_in_ellipse_ENA != 0] #shape (k1)
-
-if flat_nz_s_grid_ENA.size == 0:
-
-    tau_grid_ENA = np.zeros((xy_grid.shape[0], w.shape[0]))
-
-else:
-
-    flat_nz_s_grid_ix_ENA = flat_nz_s_grid_ix[is_point_in_ellipse_ENA != 0] #shape(k1)
-
-    #depth_grid2 = depth_grid[is_point_in_ellipse != 0]
-
-    #tau calculation
-
-    neutral_fraction_grid_ENA = np.interp(flat_nz_s_grid_ENA, cartesian_solution.s, cartesian_solution.neutral_fraction) #shape (k)
-
-    density_grid_ENA = ENA.get_rho(s_position_grid[is_point_in_ellipse_ENA != 0], s_velocity_grid[is_point_in_ellipse_ENA != 0]) #shape (k1)
-
-    z_velocity_ENA = (s_velocity_grid[:,2])[is_point_in_ellipse_ENA != 0] + ENA.u_ENA  #shape (k1)
-
-    w_mesh_ENA, z_velocity_mesh_ENA = np.meshgrid(w, z_velocity_ENA)  #write as o_grid to speed up but beware indices are swapped
-
-    x_section_grid_ENA = xs.LyA_xsection(w_mesh_ENA, z_velocity_mesh_ENA, 10**5)  #shape (k1, l) , #where l is the number of wavelength points
-
-    dtau_grid_flat_ENA = xs.d_tau(np.reshape(density_grid_ENA * neutral_fraction_grid_ENA, (len(density_grid_ENA), 1)), x_section_grid_ENA, const.m_proton, z_grid[1] - z_grid[0]) #shape (k, l)
-
-    tau_grid_ENA = np.zeros((len(xy_grid), len(w)))
-
-    for index, value in zip(flat_nz_s_grid_ix_ENA, dtau_grid_flat_ENA):
-
-        tau_grid_ENA[index // len(z_grid)] += value
-
-return tau_grid_pw + tau_grid_ENA"""
+    return do_transit, do_transit_tau

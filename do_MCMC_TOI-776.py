@@ -39,8 +39,8 @@ posterior_maker = p.PosteriorMaker(config.constant_parameters_star, config.const
 def main(target_file, restart = False, only_blue = False, weight_fluxes = False):
 
     #chain params
-    n_walkers = 80
-    n_iterations = 100
+    n_walkers = 22
+    n_iterations = 10000
 
     #sampled parameters and initial values
     sampled_parameters = config.sampled_parameters

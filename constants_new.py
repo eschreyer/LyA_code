@@ -1,5 +1,3 @@
-from astropy import units as u
-
 HI_crosssection = 6.3e-18 #* u.cm**2
 
 recombination_rate_caseA = 4.18e-13 #* u.cm**3/u.s
