@@ -63,8 +63,8 @@ def main(target_file, restart = False, only_blue = False, weight_fluxes = False)
     evaluate_posterior = p.make_log_posterior_fn(constant_parameters, evaluate_log_prior, configuration_parameters, config.tgrid, config.transit_rng, hill_sphere = args.hill_sphere, only_blue = only_blue, weight_fluxes = weight_fluxes)
 
     #chain params
-    n_walkers = 100
-    n_iterations = 20000
+    n_walkers = 20
+    n_iterations = 50
 
     #sampled parameters and initial values
     sampled_parameters = config.sampled_parameters #['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'inclination']

@@ -20,6 +20,8 @@ e = 4.803e-10
 
 m_e = 9.11e-28
 
+AU = 1.5e13
+
 """celestial body constants"""
 
 m_earth = 5.972e27

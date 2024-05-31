@@ -49,7 +49,16 @@ class PosteriorMaker():
 
     def partition_mcmc_log_parameters(self, mcmc_log_parameters):
 
-        log_parameters = [{k1:mcmc_log_parameters[k] for k,k1 in zip(key_list[0], key_list[1])} for key_list in self.mcmc_parameters_key_list]
+        log_parameters = []
+        for key_list in self.mcmc_parameters_key_list:
+            log_parameters_single = {}
+            for k, k1 in zip(key_list[0], key_list[1]):
+                if isinstance(k, tuple):
+                    log_parameters_single[k1] = tuple(mcmc_log_parameters[kk] for kk in k)
+                else:
+                    log_parameters_single[k1] = mcmc_log_parameters[k]
+            log_parameters.append(log_parameters_single)
+        #log_parameters = [{k1:mcmc_log_parameters[k] for k,k1 in zip(key_list[0], key_list[1])} for key_list in self.mcmc_parameters_key_list]
 
         if self.is_mlr_ratio == True:
 
@@ -66,7 +75,7 @@ class PosteriorMaker():
     def convert_to_linspace(self, dic):
         new_dict = {}
         for key in dic:
-            if key == 'angle' or key == 'inclination' or key == 'mass_p' or key == 'o_frac':
+            if key == 'angle' or key == 'inclination' or key == 'mass_p' or key == 'o_frac' or key == 'scalefacs':
                 new_dict[key] = dic[key]
             else:
                 new_dict[key] = 10**dic[key]
@@ -131,7 +140,7 @@ class PosteriorMaker():
                 tail = ttc.trajectory_solution_polar(star, planet, model_parameters, rho_struc, SW, photoionization_rate)
                 phase, model_intensity = do_transit(tail, phasegrid, wgrid, rho_struc, omega_p, parameters['inclination'], ENA = ENA)
                 phase, model_intensity_hill = do_transit_hill(parameters, pw_functions, phasegrid, wgrid, parameters['inclination'], ENA = ENA)
-                logL = logL_fnct(1 - model_intensity * model_intensity_hill)
+                logL = logL_fnct(1 - model_intensity * model_intensity_hill, scalefacs = parameters['scalefacs'])
                 if np.isnan(logL):
                     logger.error(f"the parameters are {str(model_parameters)}")
                     raise ValueError("this aint right")

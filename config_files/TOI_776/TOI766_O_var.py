@@ -1,8 +1,8 @@
 import density_Gaussian2D_test_new as density
 import constants_new as const
 import numpy as np
-import TOI_776_Obs_Package2.chi2 as c2
-import TOI_776_Obs_Package2.stis as stis
+import TOI_776_Obs_Package4.chi2 as c2
+import TOI_776_Obs_Package4.stis as stis
 from astropy import table
 import functools
 
@@ -231,7 +231,9 @@ Sampled Parameters
                           'mass_pb', 'radius_pb', 'semimajoraxisb', 'inclinationb' PLANET b PARAM
                           'mass_pc', 'radius_pc', 'semimajoraxisc', 'inclinationc' PLANET c PARAM
                           'c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'mdot_planetc', v_stellar_wind', 'mdot_star', 'T_stellar_wind', 'L_EUV', 'angle' MODEL PARAM
-                          'u_ENA', 'L_mix'} ENA param """
+                          'u_ENA', 'L_mix'  ENA param
+                          'o_fracb', 'ofracc' Oxygen param
+                          'scalefacsb (2,), scalefacsc (1,)'} Lya line param """
 
 constant_parameters_star = {'mass_s' : 0.544*const.m_sun, 'radius_s' : 0.538*const.r_sun, 'T_stellar_wind' : 0.5e6}
 constant_parameters_planetb = {'radius_p' : 1.85*const.r_earth, 'semimajoraxis' : 0.0652*1.5e13, 'inclination' : 1.565}
@@ -239,12 +241,12 @@ constant_parameters_planetc = {'radius_p' : 2.02*const.r_earth, 'semimajoraxis' 
 constant_parameters_planet = [constant_parameters_planetb, constant_parameters_planetc]
 
 
-sampled_parameters = ['c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'anglec', 'mass_pb', 'mass_pc', 'o_fracb', 'o_fracc']
-sampled_parameter_guess = np.array([6, 8, 6, 8, 7.4, 12, 28, (3/4)*np.pi, (3/4)*np.pi, 4 * const.m_earth, 5.3 * const.m_earth, 0.1, 0.1])
+sampled_parameters = ['c_s_planetb', 'mdot_planetb', 'c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'anglec', 'mass_pb', 'mass_pc', 'o_fracb', 'o_fracc', 'scalefacsb1', 'scalefacsb2', 'scalefacsc']
+sampled_parameter_guess = np.array([5.8, 8.8, 6.1, 8.8, 7, 11.5, 28.5, (3/5)*np.pi, (3/5)*np.pi, 4 * const.m_earth, 5.3 * const.m_earth, 0.1, 0.1, 1.0, 1.0, 1.0])
 
-planetb_key_list = ['c_s_planetb', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'mass_pb', 'o_fracb']
-planetc_key_list = ['c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'mass_pc', 'o_fracc']
-key_list = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'mass_p', 'o_frac']
+planetb_key_list = ['c_s_planetb', 'mdot_planetb', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angleb', 'mass_pb', 'o_fracb', ('scalefacsb1', 'scalefacsb2')]
+planetc_key_list = ['c_s_planetc', 'mdot_planetc', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'anglec', 'mass_pc', 'o_fracc', ('scalefacsc',)]
+key_list = ['c_s_planet', 'mdot_planet', 'v_stellar_wind', 'mdot_star', 'L_EUV', 'angle', 'mass_p', 'o_frac', 'scalefacs']
 mcmc_parameters_key_list = [[planetb_key_list, key_list], [planetc_key_list, key_list]]
 
 is_mlr_ratio = False
@@ -295,7 +297,8 @@ def evaluate_log_priorb(lp, constant_parameters):
     and 10.3 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\
     and np.pi/2 <= lp['angle'] <= np.pi\
-    and 0.01 <= lp['o_frac'] <= 0.5:
+    and 0.01 <= lp['o_frac'] <= 0.5\
+    and (0, 0) < lp['scalefacs'] <= (2,2):
 
         #gaussian priors for mass and inclination
         mu = np.array([4 * const.m_earth])
@@ -342,7 +345,8 @@ def evaluate_log_priorc(lp, constant_parameters):
     and 10.3 <= lp['mdot_star'] <= 13\
     and 26 <= lp['L_EUV'] <= 29\
     and np.pi/2 <= lp['angle'] <= np.pi\
-    and 0.01 <= lp['o_frac'] <= 0.5:
+    and 0.01 <= lp['o_frac'] <= 0.5\
+    and (0,) < lp['scalefacs'] < (2,):
 
         #gaussian priors for inclination
         mu = np.array([5.3 * const.m_earth])
@@ -368,16 +372,16 @@ vgridb = np.arange(-2e7, 2e7, 2e5)
 wavgridb = (1 + np.asarray(vgridb) / const.c) * 1215.67
 tgridb = np.concatenate((np.linspace(-41, -40, 3), np.linspace(-1.8, 1.3, 10)))
 
-path_aggregated_datab = 'TOI_776_Obs_Package2/pubdata/g140m_aggregated_data_in_system_frame.fits'
+path_aggregated_datab = 'TOI_776_Obs_Package4/pubdata/g140m_aggregated_data_in_system_frame.fits'
 datab = table.Table.read(path_aggregated_datab)
 datab['pha'] = datab['pha_b']
 datab['phb'] = datab['phb_b']
 datab['ph'] = datab['ph_b']
 datab.sort('ph')
-path_oot_line_profileb = 'TOI_776_Obs_Package2/pubdata/lya_fit_g140m.ecsv'
+path_oot_line_profileb = 'TOI_776_Obs_Package4/pubdata/lya_fit_g140m.ecsv'
 lineb = table.Table.read(path_oot_line_profileb)
 specb = stis.g140m
-g140m_lya = c2.FitPackage(wavgridb, tgridb, specb, datab, lineb, wrest=1215.67, normalize=(100, 250))
+g140m_lya = c2.FitPackage(wavgridb, tgridb, specb, datab, lineb, wrest=1215.67, epoch_divisions=(2459550,))
 
 #planet c
 
@@ -385,7 +389,7 @@ vgridc = np.concatenate((np.arange(-1.5e8, -4e7, 1e7), np.arange(-4e7, 4e7, 1e5)
 wavgridc = (1 + np.asarray(vgridc) / const.c) * 1215.67
 tgridc = np.concatenate((np.linspace(-43.5, -41, 8), np.linspace(-2.3, 2, 12)))
 
-path_aggregated_datac = 'TOI_776_Obs_Package2/pubdata/g140l_aggregated_data_in_system_frame.fits'
+path_aggregated_datac = 'TOI_776_Obs_Package4/pubdata/g140l_aggregated_data_in_system_frame.fits'
 datac = table.Table.read(path_aggregated_datac)
 datac['pha'] = datac['pha_c']
 datac['phb'] = datac['phb_c']
@@ -396,13 +400,13 @@ datac.sort('ph')
 keep = datac['t'] > 2459933
 datac = datac[keep]
 
-path_oot_line_profilec = 'TOI_776_Obs_Package2/pubdata/lya_fit_rescaled_to_g140l_epoch.ecsv'
+path_oot_line_profilec = 'TOI_776_Obs_Package4/pubdata/lya_fit_rescaled_to_g140l_epoch.ecsv'
 linec = table.Table.read(path_oot_line_profilec)
 specc = stis.g140l
-g140l_lya = c2.FitPackage(wavgridc, tgridc, specc, datac, linec, wrest=1215.67, normalize=False)
+g140l_lya = c2.FitPackage(wavgridc, tgridc, specc, datac, linec, wrest=1215.67, epoch_divisions=None)
 
 fit_package = [g140m_lya, g140l_lya]
-logL_fnct = [functools.partial(g140m_lya.compute_logL_with_partial_band_lightcurve, band = [-42, 63]), g140l_lya.compute_logL_with_full_band_lightcurve]
+logL_fnct = [functools.partial(g140m_lya.compute_logL_with_partial_band_lightcurve, band = [-37, 69]), g140l_lya.compute_logL_with_full_band_lightcurve]
 
 """
 random seeds

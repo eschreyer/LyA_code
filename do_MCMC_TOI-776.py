@@ -39,7 +39,7 @@ posterior_maker = p.PosteriorMaker(config.constant_parameters_star, config.const
 def main(target_file, restart = False, only_blue = False, weight_fluxes = False):
 
     #chain params
-    n_walkers = 22
+    n_walkers = 32
     n_iterations = 10000
 
     #sampled parameters and initial values
@@ -72,7 +72,8 @@ def main(target_file, restart = False, only_blue = False, weight_fluxes = False)
 
         #sampler initilazation and run
         with mp.Pool() as pool:
-            sampler = emcee.EnsembleSampler(n_walkers, n_dim, posterior_maker.evaluate_posterior, pool = pool, backend = backend, parameter_names = sampled_parameters) # initialise sampler object
+            #add pool back
+            sampler = emcee.EnsembleSampler(n_walkers, n_dim, posterior_maker.evaluate_posterior, backend = backend, pool = pool, parameter_names = sampled_parameters) # initialise sampler object
             random_seed = config.random_seed_chain
             sampler._random.seed(random_seed)  #fix chain random seed so that it can be reproduced
             sampler.run_mcmc(sampled_parameters_init, n_iterations, progress=True)  # start the chain!
