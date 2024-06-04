@@ -14,6 +14,14 @@ src/LyA_code/config_files/**/*
 !src/LyA_code/TOI_776_Obs_Package4/**/*
 
 src/LyA_code/TOI_776_Obs_Package4/__pycache__
+src/LyA_code/TOI_776_Obs_Package4/.DS_Store
 src/LyA_code/Observation_new_v2/__pycache__
 src/LyA_code/Observation_new_v2/.idea
 src/LyA_code/Observation_new_v2/.DS_Store
+src/LyA_code/Observation_new_v2/data/*
+
+#except data files used
+
+!src/LyA_code/Observation_new_v2/data/g140m_aggregated_data.fits
+!src/LyA_code/Observation_new_v2/data/coadd_fit.ecsv
+!src/LyA_code/Observation_new_v2/data/gj436_g140m_oot_coadd.spec
