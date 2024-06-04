@@ -2,8 +2,6 @@
 
 src/LyA_code/*
 src/LyA_code/config_files/**/*
-src/LyA_code/Observation_new_v2/__pycache__
-src/LyA_code/TOI_776_Obs_Packag4/__pycache__
 
 #Apart From Local Python Files
 
@@ -11,4 +9,11 @@ src/LyA_code/TOI_776_Obs_Packag4/__pycache__
 !src/LyA_code/config_files
 !src/LyA_code/config_files/**/*.py
 !src/LyA_code/Observation_new_v2
+!src/LyA_code/Observation_new_v2/**/*
 !src/LyA_code/TOI_776_Obs_Package4
+!src/LyA_code/TOI_776_Obs_Package4/**/*
+
+src/LyA_code/TOI_776_Obs_Package4/__pycache__
+src/LyA_code/Observation_new_v2/__pycache__
+src/LyA_code/Observation_new_v2/.idea
+src/LyA_code/Observation_new_v2/.DS_Store
