@@ -1,11 +1,11 @@
-#Ignore Everything
+#Ignore everything in LyA_code
 
-*
+src/LyA_code/*
 
 #Apart From Local Python Files
 
-!.gitignore
-!*.py
-!config_files
-!config_files/*
-!config_files/*/*
+!src/LyA_code/*.py
+!src/LyA_code/config_files
+!src/LyA_code/config_files/*
+!src/LyA_code/config_files/*/*
+
